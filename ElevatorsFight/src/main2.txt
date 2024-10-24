@@ -4,59 +4,179 @@ SECTION "Header", ROM0[$100]
 
 	jp EntryPoint
 
-	ds $150 - @, 0 ; Crea ROM para el Header
+	ds $150 - @, 0  ; Crea ROM para el Header
+
+
+wait_vblank_start:
+    ld a, [rLY]
+	cp 144				        ; Principio de VBLANK
+	jr c, wait_vblank_start
+    ret
+
+
+wait_vblank_end:
+	ld a, [rLY]
+	cp 144
+	jp nc, wait_vblank_end
+	ret
+
+
+switch_screen_off:
+    call wait_vblank_start
+    ld a, 0
+	ld [rLCDC], a
+    ret
+
+
+switch_screen_on:
+	ld a, LCDCF_ON | LCDCF_BGON | LCDCF_OBJON
+	ld [rLCDC], a
+	ret
+
+
+; Copia bytes de un área a otra
+; DE: Origen
+; HL: Destino
+; BC: Tamaño
+mem_copy:
+	ld a, [de]
+	ld [hl+], a
+	inc de
+	dec bc
+	ld a, b
+	or a, c
+	jr nz, mem_copy
+	ret
+
+
+; Pone la OAM a 0
+; A: 0
+; B: Contador
+; HL: Puntero a la dirección de la OAM
+clear_oam:
+	xor a
+	ld b, 160			; Número e bytes en la OAM que controla los sprites
+	ld hl, _OAMRAM
+	.loop
+		ld [hl+], a
+		dec b
+		jr nz, .loop
+	ret
+
+
+mi_ret:
+	ret
+
+
+; 1 nibble = 4 bits = 1/2 byte 
+one_nibble:
+	ldh [rP1], a 	; Actualiza la matriz de teclas
+	call mi_ret 	; Quema 10 ciclos llamando a un ret
+	ldh a, [rP1] 	; Ignorar para que la matriz de teclas se estabilice
+	ldh a, [rP1]
+	ldh a, [rP1] 	; Lee
+	or a, $F0 		; A7-4 = 1; A3-0 = teclas no presionadas
+
+
+update_keys:
+	; Escribe la mitad del controllador
+	ld a, P1F_GET_BTN
+	call one_nibble
+	ld b, a 			; B7-4 = 1; B3-0 = botones no presionados
+
+	; Escribe la otra mitad
+	ld a, P1F_GET_DPAD
+	call one_nibble
+	swap a 				; A3-0 = direcciones no presionadas; A7-4 = 1
+	xor b 				; A = botones presionados + direcciones
+	ld b, a 			; B = botones presionados + direcciones
+
+	; Combina con las wCurKeys previas para crear las wNewKeys
+	ld a, [wCurKeys]
+	xor b 				; A = teclas que han cambiado de estado
+	and b 				; A = teclas que han cambiado a presionadas
+	ld [wNewKeys], a
+	ld a, b
+	ld [wCurKeys], a
+
+	ret
+
+
+move:
+	; Comprueba del botón izquierdo
+	.check_left
+		ld a, [wCurKeys]
+		and a, PADF_LEFT
+		jp z, .check_right
+
+	.left:
+		; Mueve la nave un pixel a la izquierda
+		ld a, [_OAMRAM + 1]  	; OAM -> 0:Y, 1:X, 2:INDICETILE, 3:ATRIBUTOS
+		dec a
+		; Si está en el borde, no te muevas
+		cp a, 15
+		jp z, main
+		ld [_OAMRAM + 1], a
+		jp main
+
+	; Comprueba del botón derecho
+	.check_right:
+		ld a, [wCurKeys]
+		and a, PADF_RIGHT
+		jp z, main
+
+	.right:
+		; Mueve la nave un pixel a la derecha
+		ld a, [_OAMRAM + 1]
+		inc a
+		; Si está en el borde, no te muevas
+		cp a, 105
+		jp z, main
+		ld [_OAMRAM + 1], a
+		jp main
+
+
+main:
+	call wait_vblank_end
+	call wait_vblank_start
+	call update_keys
+	call move 
+	ret
+
 
 EntryPoint:
-	; No apagar la pantalla fuera de VBLANK
-
-WaitVBlank:
-	ld a, [rLY]
-	cp 144				; Principio de VBLANK
-	jp c, WaitVBlank
-
-	; Apaga la pantalla
-	xor a
-	ld [rLCDC], a	
+    call switch_screen_off
 
 	; Copia los tiles
 	ld de, Tiles
 	ld hl, $9000
 	ld bc, TilesEnd - Tiles
-	call Memcopy
+	call mem_copy
 
 	; Copia el tilemap
 	ld de, Tilemap
 	ld hl, $9800
 	ld bc, TilemapEnd - Tilemap
-	call Memcopy
+	call mem_copy
 
-	; Copia el tile de la nave
+	; Copia los tiles de la nave
 	ld de, nave
 	ld hl, $8000
 	ld bc, naveend - nave
-	call Memcopy
+	call mem_copy
 
-	xor a
-	ld b, 160			; Número de bytes en la OAM que controla los sprites
-	ld hl, _OAMRAM
-
-ClearOam:
-	ld [hl+], a
-	dec b
-	jr nz, ClearOam
+	call clear_oam
 
 	ld hl, _OAMRAM
-	ld a, 128 + 16
-	ld [hl+], a
-	ld a, 16 + 8
-	ld [hl+], a
+	ld a, 128 + 16		
+	ld [hl+], a			; Posición en el eje Y -> 144
+	ld a, 16 + 8		
+	ld [hl+], a			; Posición en el eje X -> 24
 	ld a, 0
-	ld [hl+], a
-	ld [hl], a
+	ld [hl+], a			; Primer tile en la memoria de tiles
+	ld [hl], a			; Sprite sin propiedades especiales
 
-	; Enciende la pantalla
-	ld a, LCDCF_ON | LCDCF_BGON | LCDCF_OBJON
-	ld [rLCDC], a
+	call switch_screen_on
 
 	; Durante el primer frame de VBLANk, inicializa los registros display
 	ld a, %11100100
@@ -65,106 +185,13 @@ ClearOam:
 	ld [rOBP0], a
 
 	; Inicializa las variables globales
-	xor a
+	ld a, 0
 	ld [wFrameCounter], a
 	ld [wCurKeys], a
 	ld [wNewKeys], a
 
-Main:
-	ld a, [rLY]
-	cp 144
-	jp nc, Main
-	
-WaitVBlank2:
-	ld a, [rLY]
-	cp 144
-	jp c, WaitVBlank2
+	call main
 
-	; Conprueba las teclas actuales cada frame y mueve a la izquierda o la derecha 
-	call UpdateKeys
-
-	; Primero comprueba si el botón de la izquierda ha sido presionado
-CheckLeft:
-	ld a, [wCurKeys]
-	and a, PADF_LEFT
-	jp z, CheckRight
-
-Left:
-	; Mueve la nave un pixel a la izquierda
-	ld a, [_OAMRAM + 1]  	; OAM -> 0:Y, 1:X, 2:INDICETILE, 3:ATRIBUTOS
-	dec a
-	; Si está en el borde, no se mueve
-	cp a, 15
-	jp z, Main
-	ld [_OAMRAM + 1], a
-	jp Main
-
-; Comprueba la tecla de la derecha
-CheckRight:
-	ld a, [wCurKeys]
-	and a, PADF_RIGHT
-	jp z, Main
-
-Right:
-	; Mueve la nave un pixel a la derecha
-	ld a, [_OAMRAM + 1]
-	inc a
-	; Si está en el borde, no se mueve
-	cp a, 105
-	jp z, Main
-	ld [_OAMRAM + 1], a
-	jp Main
-
-UpdateKeys:
-	; Escribe la mitad del controllador
-	ld a, P1F_GET_BTN
-	call .onenibble		; 1 nibble = 4 bits = 1/2 bytes
-	ld b, a 			; B7-4 = 1; B3-0 = botones no presionados
-
-	; Escribe la otra mitad
-	ld a, P1F_GET_DPAD
-	call .onenibble
-	swap a 				; A3-0 = direcciones no presionadas; A7-4 = 1
-	xor a, b 			; A = botones presionados + direcciones
-	ld b, a 			; B = botones presionados + direcciones
-
-	; Carga los controladores
-	ld a, P1F_GET_NONE
-	ldh [rP1], a
-
-	; Combina con las wCurKeys previas para crear las wNewKeys
-	ld a, [wCurKeys]
-	xor a, b 			; A = teclas que han cambiado de estado
-	and a, b 			; A = teclas que han cambiado a presionadas
-	ld [wNewKeys], a
-	ld a, b
-	ld [wCurKeys], a
-	ret
-
-	.onenibble
-		ldh [rP1], a 		; Cambia la matriz de teclas
-		call .knownret 		; Quema 10 ciclos llamando a un ret
-		ldh a, [rP1] 		; Ignorar para que la matriz de teclas se estabilice
-		ldh a, [rP1]
-		ldh a, [rP1] 		; Lee
-		or a, $F0 			; A7-4 = 1; A3-0 = teclas no presionadas
-	
-	.knownret
-		ret
-
-; Copia bytes de un área a otra
-; DE: Origen
-; HL: Destino
-; BC: Tamaño
-Memcopy:
-	ld a, [de]
-	ld [hl+], a
-	inc de
-	dec bc
-	ld a, b
-	or a, c
-	jp nz, Memcopy
-	ret
 
 Tiles:
 	dw `33333333
@@ -401,11 +428,11 @@ TilemapEnd:
 
 
 
-SECTION "Counter", WRAM0
+SECTION "Contador", WRAM0
 wFrameCounter: db
 
-; ANCHOR: vars
-SECTION "Input Variables", WRAM0
+
+
+SECTION "Variables de entrada", WRAM0
 wCurKeys: db
 wNewKeys: db
-; ANCHOR_END: vars
