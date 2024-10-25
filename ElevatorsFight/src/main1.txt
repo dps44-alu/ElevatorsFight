@@ -8,6 +8,7 @@ SECTION "Header", ROM0[$100]
 
 EntryPoint:
 	; No apagar la pantalla fuera de VBLANK
+
 WaitVBlank:
 	ld a, [rLY]
 	cp 144				; Principio de VBLANK
@@ -17,33 +18,28 @@ WaitVBlank:
 	xor a
 	ld [rLCDC], a	
 
-; ANCHOR: copy_tiles
-	; Copy the tile data
+	; Copia los tiles
 	ld de, Tiles
 	ld hl, $9000
 	ld bc, TilesEnd - Tiles
 	call Memcopy
-; ANCHOR_END: copy_tiles
 
-; ANCHOR: copy_map
-	; Copy the tilemap
+	; Copia el tilemap
 	ld de, Tilemap
 	ld hl, $9800
 	ld bc, TilemapEnd - Tilemap
 	call Memcopy
-; ANCHOR_END: copy_map
 
-; ANCHOR: copy_paddle
-	; Copy the nave tile
+	; Copia el tile de la nave
 	ld de, nave
 	ld hl, $8000
 	ld bc, naveend - nave
 	call Memcopy
-; ANCHOR_END: copy_paddle
 
 	xor a
-	ld b, 160			; Número e bytes en la OAM que controla los sprites
+	ld b, 160			; Número de bytes en la OAM que controla los sprites
 	ld hl, _OAMRAM
+
 ClearOam:
 	ld [hl+], a
 	dec b
@@ -58,111 +54,108 @@ ClearOam:
 	ld [hl+], a
 	ld [hl], a
 
-	; Turn the LCD on
+	; Enciende la pantalla
 	ld a, LCDCF_ON | LCDCF_BGON | LCDCF_OBJON
 	ld [rLCDC], a
 
-	; During the first (blank) frame, initialize display registers
+	; Durante el primer frame de VBLANk, inicializa los registros display
 	ld a, %11100100
 	ld [rBGP], a
 	ld a, %11100100
 	ld [rOBP0], a
 
-	; ANCHOR: initialize-vars
-	; Initialize global variables
+	; Inicializa las variables globales
 	xor a
 	ld [wFrameCounter], a
 	ld [wCurKeys], a
 	ld [wNewKeys], a
-	; ANCHOR_END: initialize-vars
 
-; ANCHOR: main
 Main:
 	ld a, [rLY]
 	cp 144
 	jp nc, Main
+	
 WaitVBlank2:
 	ld a, [rLY]
 	cp 144
 	jp c, WaitVBlank2
 
-	; Check the current keys every frame and move left or right.
+	; Conprueba las teclas actuales cada frame y mueve a la izquierda o la derecha 
 	call UpdateKeys
 
-	; First, check if the left button is pressed.
+	; Primero comprueba si el botón de la izquierda ha sido presionado
 CheckLeft:
 	ld a, [wCurKeys]
 	and a, PADF_LEFT
 	jp z, CheckRight
+
 Left:
-	; Move the nave one pixel to the left.
-	ld a, [_OAMRAM + 1]  ; OAM -> 0:Y, 1:X, 2:INDICETILE, 3:ATRIBUTOS
+	; Mueve la nave un pixel a la izquierda
+	ld a, [_OAMRAM + 1]  	; OAM -> 0:Y, 1:X, 2:INDICETILE, 3:ATRIBUTOS
 	dec a
-	; If we've already hit the edge of the playfield, don't move.
+	; Si está en el borde, no se mueve
 	cp a, 15
 	jp z, Main
 	ld [_OAMRAM + 1], a
 	jp Main
 
-; Then check the right button.
+; Comprueba la tecla de la derecha
 CheckRight:
 	ld a, [wCurKeys]
 	and a, PADF_RIGHT
 	jp z, Main
+
 Right:
-	; Move the nave one pixel to the right.
+	; Mueve la nave un pixel a la derecha
 	ld a, [_OAMRAM + 1]
 	inc a
-	; If we've already hit the edge of the playfield, don't move.
+	; Si está en el borde, no se mueve
 	cp a, 105
 	jp z, Main
 	ld [_OAMRAM + 1], a
 	jp Main
-; ANCHOR_END: main
 
-; ANCHOR: input-routine
 UpdateKeys:
-  ; Poll half the controller
-  ld a, P1F_GET_BTN
-  call .onenibble
-  ld b, a ; B7-4 = 1; B3-0 = unpressed buttons
+	; Escribe la mitad del controllador
+	ld a, P1F_GET_BTN
+	call .onenibble		; 1 nibble = 4 bits = 1/2 bytes
+	ld b, a 			; B7-4 = 1; B3-0 = botones no presionados
 
-  ; Poll the other half
-  ld a, P1F_GET_DPAD
-  call .onenibble
-  swap a ; A3-0 = unpressed directions; A7-4 = 1
-  xor a, b ; A = pressed buttons + directions
-  ld b, a ; B = pressed buttons + directions
+	; Escribe la otra mitad
+	ld a, P1F_GET_DPAD
+	call .onenibble
+	swap a 				; A3-0 = direcciones no presionadas; A7-4 = 1
+	xor a, b 			; A = botones presionados + direcciones
+	ld b, a 			; B = botones presionados + direcciones
 
-  ; And release the controller
-  ld a, P1F_GET_NONE
-  ldh [rP1], a
+	; Carga los controladores
+	ld a, P1F_GET_NONE
+	ldh [rP1], a
 
-  ; Combine with previous wCurKeys to make wNewKeys
-  ld a, [wCurKeys]
-  xor a, b ; A = keys that changed state
-  and a, b ; A = keys that changed to pressed
-  ld [wNewKeys], a
-  ld a, b
-  ld [wCurKeys], a
-  ret
+	; Combina con las wCurKeys previas para crear las wNewKeys
+	ld a, [wCurKeys]
+	xor a, b 			; A = teclas que han cambiado de estado
+	and a, b 			; A = teclas que han cambiado a presionadas
+	ld [wNewKeys], a
+	ld a, b
+	ld [wCurKeys], a
+	ret
 
-.onenibble
-  ldh [rP1], a ; switch the key matrix
-  call .knownret ; burn 10 cycles calling a known ret
-  ldh a, [rP1] ; ignore value while waiting for the key matrix to settle
-  ldh a, [rP1]
-  ldh a, [rP1] ; this read counts
-  or a, $F0 ; A7-4 = 1; A3-0 = unpressed keys
-.knownret
-  ret
-; ANCHOR_END: input-routine
+	.onenibble
+		ldh [rP1], a 		; Cambia la matriz de teclas
+		call .knownret 		; Quema 10 ciclos llamando a un ret
+		ldh a, [rP1] 		; Ignorar para que la matriz de teclas se estabilice
+		ldh a, [rP1]
+		ldh a, [rP1] 		; Lee
+		or a, $F0 			; A7-4 = 1; A3-0 = teclas no presionadas
+	
+	.knownret
+		ret
 
-; ANCHOR: memcpy
-; Copy bytes from one area to another.
-; @param de: Source
-; @param hl: Destination
-; @param bc: Length
+; Copia bytes de un área a otra
+; DE: Origen
+; HL: Destino
+; BC: Tamaño
 Memcopy:
 	ld a, [de]
 	ld [hl+], a
@@ -172,7 +165,6 @@ Memcopy:
 	or a, c
 	jp nz, Memcopy
 	ret
-; ANCHOR_END: memcpy
 
 Tiles:
 	dw `33333333
