@@ -34,7 +34,7 @@ tilefondo::
     db $FF, $FF  ; Línea 8 
 tilefondoend::
 
-nave::
+SpaceShip::
     db $18, $00  ; Línea 1: 00011000
     db $3C, $00  ; Línea 2: 00111100
     db $7E, $00  ; Línea 3: 01111110
@@ -43,9 +43,18 @@ nave::
     db $99, $00  ; Línea 6: 10011001
     db $81, $00  ; Línea 7: 10000001
     db $00, $00  ; Línea 8: 00000000
-naveend::
+SpaceShipEnd::
 
-
+Ball:
+    dw `00033000
+    dw `00322300
+    dw `03222230
+    dw `03222230
+    dw `00322300
+    dw `00033000
+    dw `00000000
+    dw `00000000
+BallEnd:
 
 ;UN TILE SON 16 BYTES EN MEMORIA
 
