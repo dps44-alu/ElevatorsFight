@@ -1,4 +1,4 @@
-; TILEFONDO.INC
+; TILESFONDO.INC
 ;
 ; Include File.
 ;
@@ -22,16 +22,10 @@
 
 
 ; Bank of tiles.
-tilesBank EQU 0
+tilesfondoBank EQU 0
 
 ; Start of tile array.
- GLOBAL tilefondo
+ GLOBAL tilesfondo
  
- GLOBAL tilefondoend
-; End of TILEFONDO.INC
-
-GLOBAL nave
-GLOBAL naveend
-
-GLOBAL ball
-GLOBAL ballend
+ GLOBAL tilesfondoend
+; End of TILESFONDO.INC

@@ -23,18 +23,19 @@
  SECTION "Tiles", ROM0
 
 ; Start of tile array.
-tilefondo::
-    db $FF, $FF  ; Línea 1: pasa a 16 bits, 
-    db $FF, $FF  ; Línea 2  se agrupan menor y mayor
-    db $FF, $FF  ; Línea 3  16/2 = 8. cada fila 8 pixeles
-    db $FF, $FF  ; Línea 4
-    db $FF, $FF  ; Línea 5
-    db $FF, $FF  ; Línea 6
-    db $FF, $FF  ; Línea 7
-    db $FF, $FF  ; Línea 8 
-tilefondoend::
+ball::
+    db $18, $3C  ; Línea 1: 00011000 (una fila con una parte más ancha en el centro)
+    db $7E, $FF  ; Línea 2: 01111110 (expansión máxima de la bola)
+    db $FF, $FF  ; Línea 3: completamente llena
+    db $FF, $FF  ; Línea 4: completamente llena
+    db $FF, $FF  ; Línea 5: completamente llena
+    db $FF, $7E  ; Línea 6: vuelta a la expansión máxima
+    db $3C, $18  ; Línea 7: se va cerrando hacia el centro
+    db $00, $00  ; Línea 8: espacio vacío, fondo
+ballend::
 
-SpaceShip::
+
+nave::
     db $18, $00  ; Línea 1: 00011000
     db $3C, $00  ; Línea 2: 00111100
     db $7E, $00  ; Línea 3: 01111110
@@ -43,19 +44,123 @@ SpaceShip::
     db $99, $00  ; Línea 6: 10011001
     db $81, $00  ; Línea 7: 10000001
     db $00, $00  ; Línea 8: 00000000
-SpaceShipEnd::
+naveend::
 
-Ball:
-    dw `00033000
-    dw `00322300
-    dw `03222230
-    dw `03222230
-    dw `00322300
-    dw `00033000
-    dw `00000000
-    dw `00000000
-BallEnd:
+
 
 ;UN TILE SON 16 BYTES EN MEMORIA
+; Naves de enemigos
+
+nave1::
+    db $18, $3C  ; Línea 1: 00011000 -> Nave en forma de flecha
+    db $3C, $7E  ; Línea 2: 00111100
+    db $7E, $FF  ; Línea 3: 01111110
+    db $FF, $FF  ; Línea 4: 11111111
+    db $E7, $E7  ; Línea 5: 11100111
+    db $C3, $C3  ; Línea 6: 11000011
+    db $81, $81  ; Línea 7: 10000001
+    db $00, $00  ; Línea 8: 00000000
+nave1end::
+
+nave2::
+    db $00, $7E  ; Línea 1: 00000000 -> Nave más ancha con centro vacío
+    db $42, $FF  ; Línea 2: 01000010
+    db $99, $BD  ; Línea 3: 10011001
+    db $7E, $7E  ; Línea 4: 01111110
+    db $3C, $18  ; Línea 5: 00111100
+    db $24, $24  ; Línea 6: 00100100
+    db $42, $42  ; Línea 7: 01000010
+    db $00, $00  ; Línea 8: 00000000
+nave2end::
+
+nave3::
+    db $00, $66  ; Línea 1: 00000000 -> Nave en forma de X
+    db $66, $FF  ; Línea 2: 01100110
+    db $FF, $3C  ; Línea 3: 11111111
+    db $3C, $18  ; Línea 4: 00111100
+    db $18, $7E  ; Línea 5: 00011000
+    db $7E, $DB  ; Línea 6: 01111110
+    db $DB, $18  ; Línea 7: 11011011
+    db $00, $00  ; Línea 8: 00000000
+nave3end::
+
+nave4::
+    db $24, $42  ; Línea 1: 00100100 -> Nave en forma de W
+    db $24, $81  ; Línea 2: 00100100
+    db $18, $FF  ; Línea 3: 00011000
+    db $5A, $FF  ; Línea 4: 01011010
+    db $7E, $FF  ; Línea 5: 01111110
+    db $DB, $24  ; Línea 6: 11011011
+    db $42, $18  ; Línea 7: 01000010
+    db $00, $00  ; Línea 8: 00000000
+nave4end::
+
+nave5::
+    db $00, $81  ; Línea 1: 00000000 -> Nave con forma de escudo
+    db $66, $7E  ; Línea 2: 01100110
+    db $7E, $3C  ; Línea 3: 01111110
+    db $3C, $18  ; Línea 4: 00111100
+    db $18, $FF  ; Línea 5: 00011000
+    db $FF, $66  ; Línea 6: 11111111
+    db $66, $00  ; Línea 7: 01100110
+    db $00, $00  ; Línea 8: 00000000
+nave5end::
+
+nave6::
+    db $18, $3C  ; Línea 1: 00011000 -> Nave con bordes y centro sólido
+    db $3C, $7E  ; Línea 2: 00111100
+    db $7E, $FF  ; Línea 3: 01111110
+    db $FF, $99  ; Línea 4: 11111111
+    db $99, $81  ; Línea 5: 10011001
+    db $81, $66  ; Línea 6: 10000001
+    db $66, $00  ; Línea 7: 01100110
+    db $00, $00  ; Línea 8: 00000000
+nave6end::
+
+nave7::
+    db $00, $42  ; Línea 1: 00000000 -> Nave con forma de cabeza de flecha
+    db $42, $7E  ; Línea 2: 01000010
+    db $7E, $FF  ; Línea 3: 01111110
+    db $3C, $81  ; Línea 4: 00111100
+    db $81, $A5  ; Línea 5: 10000001
+    db $A5, $5A  ; Línea 6: 10100101
+    db $5A, $24  ; Línea 7: 01011010
+    db $00, $00  ; Línea 8: 00000000
+nave7end::
+
+nave8::
+    db $10, $28  ; Línea 1: 00010000 -> Nave en forma de diamante
+    db $28, $54  ; Línea 2: 00101000
+    db $54, $82  ; Línea 3: 01010100
+    db $82, $7C  ; Línea 4: 10000010
+    db $7C, $44  ; Línea 5: 01111100
+    db $44, $44  ; Línea 6: 01000100
+    db $44, $7C  ; Línea 7: 01000100
+    db $7C, $00  ; Línea 8: 01111100
+nave8end::
+bala_vertical::
+    db $18, $18  ; Línea 1: Rectángulo central
+    db $18, $18  ; Línea 2: Rectángulo central
+    db $18, $18  ; Línea 3: Rectángulo central
+    db $18, $18  ; Línea 4: Rectángulo central
+    db $18, $18  ; Línea 5: Rectángulo central
+    db $18, $18  ; Línea 6: Rectángulo central
+    db $18, $18  ; Línea 7: Rectángulo central
+    db $00, $00  ; Línea 8: Espacio vacío
+bala_vertical_end::
+proyectil_ensanchado::
+    db $00, $7E  ; Línea 1: Máximo ensanchamiento en la parte superior
+    db $00, $7E  ; Línea 2: Máximo ensanchamiento
+    db $00, $3C  ; Línea 3: Se reduce un poco
+    db $00, $3C  ; Línea 4: Se reduce un poco más
+    db $00, $18  ; Línea 5: Centro más fino
+    db $00, $18  ; Línea 6: Se hace aún más fino
+    db $00, $08  ; Línea 7: Fino en la parte inferior
+    db $00, $08  ; Línea 8: Fino en la parte inferior
+proyectil_ensanchado_end::
+
+
+
+
 
 ; End of TILEFONDO.Z80
