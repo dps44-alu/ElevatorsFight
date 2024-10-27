@@ -1,10 +1,7 @@
 INCLUDE "hardware.inc"
 
-SECTION "Header", ROM0[$100]
+SECTION "Main", ROM0[$0150]
 
-	jp main
-
-	ds $150 - @, 0  ; Crea ROM para el Header
 
 
 wait_vblank_start:
