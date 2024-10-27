@@ -1,136 +1,211 @@
 include "hardware.inc"
 SECTION "BulletVariables", WRAM0
-wBulletActive: ds 1        ; Indica si la bala está activa (1) o inactiva (0)
-wBulletPosX: ds 1          ; Posición X de la bala
-wBulletPosY: ds 1          ; Posición Y de la bala
-wBulletOAMIndex: ds 1      ; Índice fijo en OAM para la bala
-wLastShotTime: ds 1        ; Contador para el debounce del disparo
+wBulletActive: ds 10        ; Array of 10 active bullets (1 = active, 0 = inactive)
+wBulletPosX: ds 10          ; Array of X positions for each bullet
+wBulletPosY: ds 10          ; Array of Y positions for each bullet
+wShootDelay: ds 1           ; Simple delay counter for shooting
 
 SECTION "Bullet", ROM0
 
 initializeBullet:
-    ; Cargar el gráfico de la bala en VRAM
+    ; Load bullet sprite into VRAM
     ld de, bala_vertical          
     ld hl, $8010                  
     ld bc, bala_vertical_end - bala_vertical
     call mem_copy                 
 
-    ; Inicializar variables
+    ; Initialize all bullets as inactive and off-screen
+    ld b, 10                      ; Bullet counter
+    ld hl, wBulletActive
+.clearLoop:
     xor a
-    ld [wBulletActive], a        
-    ld [wBulletPosX], a
-    ld [wBulletPosY], a   
-    ld [wLastShotTime], a       
-    
-    ; Establecer índice fijo en OAM
-    ld a, 4                      ; 4 bytes después de la nave
-    ld [wBulletOAMIndex], a
-    
-    ; Limpiar el sprite inicial
-    call ClearBulletSprite
-    ret
+    ld [hl+], a                  ; Initialize as inactive
+    ld [hl+], a                  ; Initialize PosX
+    ld [hl+], a                  ; Initialize PosY
+    dec b
+    jr nz, .clearLoop
 
-ClearBulletSprite:
-    ; Mover el sprite de la bala fuera de la pantalla
-    ld a, [wBulletOAMIndex]
-    ld c, a
-    ld b, 0
-    ld hl, _OAMRAM
-    add hl, bc
-    
-    ; Y = 0 (fuera de pantalla)
+    ; Initialize shoot delay
     xor a
-    ld [hl+], a
-    ; X = 0
-    ld [hl+], a
-    ; Tile = 0
-    ld [hl+], a
-    ; Atributos = 0
-    ld [hl], a
+    ld [wShootDelay], a
     ret
 
 FireBullet::
-    ; Verificar si la bala ya está activa
-    ld a, [wBulletActive]
-    cp 1
-    ret z               
+    ; Check and update delay
+    ld a, [wShootDelay]
+    and a                       ; Check if delay is zero
+    jr z, .canShoot
+    dec a                       ; Decrease delay
+    ld [wShootDelay], a
+    ret                         ; Can't shoot yet
 
-    ; Verificar el debounce timer
-    ld a, [wLastShotTime]
-    cp 0
-    ret nz
+.canShoot:
+    ; Reset delay counter
+    ld a, 10                    ; Set delay to 10 frames (adjust this for different fire rates)
+    ld [wShootDelay], a
 
-    ; Activar la bala
+    ; Find inactive bullet
+    ld b, 0                     ; Initialize bullet index
+    ld de, wBulletActive        
+.findFreeBullet:
+    ld a, [de]                  
+    and a                       ; Check if bullet is inactive (0)
+    jr z, .foundFree           
+    inc de                      
+    inc b                       
+    ld a, b
+    cp 10
+    ret z                       ; No free bullets
+    jr .findFreeBullet
+
+.foundFree:
+    ; Activate found bullet
     ld a, 1
-    ld [wBulletActive], a
-    
-    ; Establecer el tiempo de debounce
-    ld a, 30           ; 15 frames de espera entre disparos
-    ld [wLastShotTime], a
-    
-    ; Posicionar la bala centrada sobre la nave
+    ld [de], a                  ; Set as active
+
+    ; Set bullet position
+    push bc                    
+    ld hl, wBulletPosX
+    ld c, b
+    ld b, 0
+    add hl, bc                
     ld a, [posicionNaveX]
-    ld [wBulletPosX], a
-    
+    ld [hl], a                
+
+    ld hl, wBulletPosY
+    ld c, b
+    ld b, 0
+    add hl, bc                
     ld a, [posicionNaveY]
-    sub 8               ; Colocar encima de la nave
-    ld [wBulletPosY], a
+    ld [hl], a                
+    pop bc                    
     ret
 
 UpdateBullet::
-    ; Actualizar el timer de debounce
-    ld a, [wLastShotTime]
-    cp 0
-    jr z, .skipTimerUpdate
-    dec a
-    ld [wLastShotTime], a
-.skipTimerUpdate:
+    ld c, 0                   ; Bullet index
+.updateLoop:
+    push bc                   
 
-    ; Verificar si la bala está activa
-    ld a, [wBulletActive]
-    cp 1
-    ret nz              
-
-    ; Mover la bala hacia arriba
-    ld a, [wBulletPosY]
-    sub 2               ; Velocidad de la bala
-    ld [wBulletPosY], a
-    
-    ; Verificar si salió de la pantalla
-    cp 16              ; 16 es el límite superior visible
-    jp c, DeactivateBullet
-    
-    ; Actualizar el sprite en OAM durante VBLANK
-    call wait_vblank_start
-    
-    ld a, [wBulletOAMIndex]
-    ld c, a
+    ; Check if bullet is active
+    ld hl, wBulletActive
     ld b, 0
-    ld hl, _OAMRAM
     add hl, bc
-    
-    ; Actualizar Y
+    ld a, [hl]
+    and a
+    jr z, .nextBullet        ; Skip if inactive
+
+    ; Update Y position
+    ld hl, wBulletPosY
+    ld b, 0
+    add hl, bc
+    ld a, [hl]
+    sub 2                    ; Move up
+    ld [hl], a
+
+    ; Check if off screen
+    cp 16                    
+    jr c, .deactivateBullet
+
+    ; Update OAM
+    push bc
+    ld hl, _OAMRAM + 4      ; Start after player sprite
+    ld b, 0
+    ld a, c
+    add a, a                ; × 4 for OAM entry size
+    add a, a
+    ld c, a
+    add hl, bc              
+
+    ; Update Y
     ld a, [wBulletPosY]
     ld [hl+], a
-    
-    ; Actualizar X
+
+    ; Update X
     ld a, [wBulletPosX]
     ld [hl+], a
-    
-    ; Tile de la bala
-    ld a, $01
+
+    ; Tile number
+    ld a, $01              
     ld [hl+], a
+
+    ; Attributes
+    xor a                   
+    ld [hl], a
     
-    ; Atributos
+    pop bc
+    jr .nextBullet
+
+.deactivateBullet:
+    ; Deactivate bullet
+    ld hl, wBulletActive
+    ld b, 0
+    add hl, bc
     xor a
     ld [hl], a
+
+    ; Clear from OAM
+    ld hl, _OAMRAM + 4     
+    ld b, 0
+    ld a, c
+    add a, a               
+    add a, a
+    ld c, a
+    add hl, bc             
+
+    xor a                  
+    ld [hl+], a
+    ld [hl+], a
+    ld [hl+], a
+    ld [hl], a
+
+.nextBullet:
+    pop bc                 
+    inc c
+    ld a, c
+    cp 10                  
+    jr nz, .updateLoop
     ret
 
-DeactivateBullet::
+DeactivateAllBullets::
+    ; Deactivate all bullets
+    ld b, 10
+    ld hl, wBulletActive
+.clearAllLoop:
     xor a
-    ld [wBulletActive], a
-    
-    ; Limpiar el sprite durante VBLANK
-    call wait_vblank_start
+    ld [hl+], a
+    dec b
+    jr nz, .clearAllLoop
+
+    ; Clear all sprites of bullets in the OAM
+    call ClearAllBulletSprites
+    ret
+
+ClearAllBulletSprites:
+    ; Clear all sprites of bullets in the OAM
+    ld b, 10
+    ld a, 4                ; Start index in OAM for bullets
+    ld c, a
+.clearAllSpritesLoop:
+    push bc
     call ClearBulletSprite
+    pop bc
+    inc c
+    dec b
+    jr nz, .clearAllSpritesLoop
+    ret
+
+ClearBulletSprite:
+    ; Clear a bullet sprite in the OAM
+    ld hl, _OAMRAM
+    ld b, 0
+    add hl, bc
+    add hl, bc             ; Each bullet takes 4 bytes in the OAM
+    add hl, bc
+    add hl, bc
+
+    xor a
+    ld [hl+], a
+    ld [hl+], a
+    ld [hl+], a
+    ld [hl], a
     ret
