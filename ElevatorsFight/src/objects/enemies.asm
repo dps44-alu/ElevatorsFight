@@ -1,0 +1,108 @@
+INCLUDE "hardware.inc"
+
+
+SECTION "Enemy Constants", ROM0
+DEF ENEMY_MIN_X     EQU 8       ; Límite izquierdo de la pantalla
+DEF ENEMY_MAX_X     EQU 152     ; Límite derecho de la pantalla
+DEF ENEMY_SPEED     EQU 1       ; Velocidad de movimiento
+DEF MOVE_DELAY      EQU 8       ; Se moverá cada 8 frames
+
+
+SECTION "Enemy Atributes", WRAM0
+enemyX: ds 1                ; Variable de 1 byte para la posición X
+enemyY: ds 1                ; Variable de 1 byte para la posición Y
+enemy_direction: ds 1       ; 0 = derecha, 1 = izquierda
+enemy_timer: ds 1           ; Contador para ralentizar el movimiento
+
+
+SECTION "Enemy", ROM0
+
+initialize_enemy:
+    xor a                       ; A = 0
+    ld [enemy_direction], a     ; Primero derecha
+    ld [enemy_timer], a        
+
+    ld a, 84
+    ld [enemyX], a              ; X = 1/2 pantalla
+
+    ld a, 40
+    ld [enemyY], a              ; Y = arriba cerca del borde
+
+    call copy_enemy_tiles_to_vram
+    ret
+
+
+copy_enemy_tiles_to_vram:
+    ; Copia los datos del tile del enemigo en la VRAM
+    ld de, nave2
+    ld hl, $8020
+    ld bc, nave2end - nave2
+    call mem_copy
+    ret
+
+
+copy_enemy_to_oam:
+    ld hl, _OAMRAM + 44 ; Establece la dirección base en la OAM para la nave
+
+    ld a, [enemyY]
+    ld [hl+], a
+
+    ld a, [enemyX]
+    ld [hl+], a
+
+    ld a, 2             ; Tercer tile
+    ld [hl+], a
+
+    xor a               ; Sin propiedades especiales
+    ld [hl], a
+
+    ret
+
+
+move_enemy:
+    ; Incrementa el contador
+    ld a, [enemy_timer]
+    inc a
+    ld [enemy_timer], a
+    
+    ; Comprueba si debemos mover
+    cp MOVE_DELAY
+    ret nz                 ; Si no es el momento, retorna
+    
+    ; Reinicia el contador
+    xor a
+    ld [enemy_timer], a
+
+    ; Comprueba la dirección actual
+    ld a, [enemy_direction]
+    and a                   ; Compara con 0
+    jr nz, .move_left
+
+    .move_right:
+        ; Mueve a la derecha
+        ld a, [enemyX]
+        cp ENEMY_MAX_X         ; Compara con el límite derecho
+        jr nc, .change_to_left ; Si llegamos al límite, cambia dirección
+        add ENEMY_SPEED        ; Suma la velocidad
+        ld [enemyX], a
+        ret
+
+    .move_left:
+        ; Mueve a la izquierda
+        ld a, [enemyX]
+        cp ENEMY_MIN_X         ; Compara con el límite izquierdo
+        jr c, .change_to_right ; Si llegamos al límite, cambia dirección
+        sub ENEMY_SPEED        ; Resta la velocidad
+        ld [enemyX], a
+        ret
+
+    .change_to_left:
+        ld a, 1
+        ld [enemy_direction], a
+        ret
+
+    .change_to_right:
+        xor a                  ; a = 0
+        ld [enemy_direction], a
+        ret
+

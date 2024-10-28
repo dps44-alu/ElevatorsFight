@@ -138,6 +138,7 @@ nave8::
     db $44, $7C  ; Línea 7: 01000100
     db $7C, $00  ; Línea 8: 01111100
 nave8end::
+
 bala_vertical::
     db $18, $18  ; Línea 1: Rectángulo central
     db $18, $18  ; Línea 2: Rectángulo central
@@ -148,6 +149,7 @@ bala_vertical::
     db $18, $18  ; Línea 7: Rectángulo central
     db $00, $00  ; Línea 8: Espacio vacío
 bala_vertical_end::
+
 proyectil_ensanchado::
     db $00, $7E  ; Línea 1: Máximo ensanchamiento en la parte superior
     db $00, $7E  ; Línea 2: Máximo ensanchamiento

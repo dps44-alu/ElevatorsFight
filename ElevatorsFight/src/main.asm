@@ -3,7 +3,6 @@ INCLUDE "hardware.inc"
 SECTION "Main", ROM0[$0150]
 
 
-
 wait_vblank_start:
 	.loop
 		ld a, [rLY]		; rLY = $FF44 -> Indica la línea actual que está siendo dibujada
@@ -228,7 +227,6 @@ get_tile_by_pixel:
 ; 	ret
 
 
-
 my_ret:
 	ret
 
@@ -308,10 +306,6 @@ move:
 	; 	jp game_loop
 
 
-
-
-
-
 main:
     call switch_screen_off
 
@@ -332,8 +326,13 @@ main:
 	; ld hl, $8000
 	; ld bc, naveend - nave
 	; call mem_copy
+	
 	call inicializarNave
+
 	call initializeBullet
+
+	call initialize_enemy
+
 	; ; Copia los tiles de la bola
     ; ld de, ball
     ; ld hl, $8010
@@ -348,6 +347,8 @@ main:
 
 	call clear_oam
 
+	call copy_enemy_to_oam
+
 	; ; Inicializa el sprite de la nave en la OAM
 	; ;ESTE ES NUESTRO JUGADOR
 	; ld hl, _OAMRAM
@@ -359,10 +360,7 @@ main:
 	; ld [hl+], a			; Primer tile en la memoria de tiles
 	; ld [hl+], a			; Sprite sin propiedades especiales
 	
-	
 	;call updateNave NOOO
-
-
 
 	; ; Inicializa el sprite de la bola en la OAM
 	; ld a, 100 + 16
@@ -389,9 +387,6 @@ main:
     ; ld a, 0
     ; ld [hl+], a			; Sprite sin propiedades especiales
 
-
-
-
 	call switch_screen_on
 
 	; Durante el primer frame de VBLANk, inicializa los registros display
@@ -406,21 +401,22 @@ main:
 	ld [wCurKeys], a
 	ld [wNewKeys], a
 
+
 game_loop:
+	call wait_vblank_end
 	call wait_vblank_start
 
-
 	call update_keys
+
+	call move_enemy
+	call copy_enemy_to_oam
+
     ; Actualiza las entradas y mueve la nave
 	call updateNave
 
-
 	call UpdateBullet
 
-
     jp game_loop
-
-
 
 
 
