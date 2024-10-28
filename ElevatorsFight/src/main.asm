@@ -7,26 +7,24 @@ wait_vblank_start:
 	.loop
 		ld a, [rLY]		; rLY = $FF44 -> Indica la línea actual que está siendo dibujada
 		cp 144			; Principio de VBLANK
-		jr c, .loop
+		jr nz, .loop
     ret
-
-
-wait_vblank_end:
-	.loop
-		ld a, [rLY]
-		cp 144
-		jr nc, .loop
-	ret
 
 
 switch_screen_off:
     call wait_vblank_start
-    xor a
-	ld [rLCDC], a				; rLCDC = $FF40 -> Controla la pantalla, el bit 7 indica si está encendia (1) o apagada (0)
+	ld hl, rLCDC
+	res 7, [hl]					; rLCDC = $FF40 -> Controla la pantalla, el bit 7 indica si está encendia (1) o apagada (0)			
     ret
 
 
 switch_screen_on:
+	ldh a, [rLCDC] ;; A = Read LCD Control Register (rLCDC)
+	set 7, a       ;; Set Bit 7 to 1 (switch LCD on)
+	ldh [rLCDC], a ;; Write new value of rLCDC
+
+
+setup_screen:
 	ld a, LCDCF_ON | LCDCF_BGON | LCDCF_OBJON	; OR de encender_pantalla, habilitar_fondo y habilitar_sprites
 	ld [rLCDC], a
 	ret
@@ -387,7 +385,7 @@ main:
     ; ld a, 0
     ; ld [hl+], a			; Sprite sin propiedades especiales
 
-	call switch_screen_on
+	call setup_screen
 
 	; Durante el primer frame de VBLANk, inicializa los registros display
 	ld a, %11100100
@@ -403,16 +401,17 @@ main:
 
 
 game_loop:
-	call wait_vblank_end
-	call wait_vblank_start
-
 	call update_keys
 
 	call move_enemy
+
+	call updateNave
+
+	call wait_vblank_start
+
 	call copy_enemy_to_oam
 
-    ; Actualiza las entradas y mueve la nave
-	call updateNave
+	call UpdatePlayer_UpdateSprite
 
 	call UpdateBullet
 

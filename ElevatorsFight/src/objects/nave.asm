@@ -49,7 +49,7 @@ updateNave_HandleInput:
 	call nz, TryShoot
 
     
-    call UpdatePlayer_UpdateSprite
+    ; call UpdatePlayer_UpdateSprite
     ret
 
 
