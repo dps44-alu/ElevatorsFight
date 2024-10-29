@@ -348,7 +348,6 @@ main:
 	call clear_oam
 
 	call copy_enemies_to_oam
-	call check_bullet_enemy_collisions ; In game loop
 
 
 
@@ -414,13 +413,34 @@ game_loop:
     call UpdateBulletLogic
     call move_enemies
     call check_bullet_enemy_collisions
-    
+    call UpdateHUDLogic
     ; Wait for VBlank only before updating sprites
     call wait_vblank_start
-    ; Update all sprites at once
+
+
+	;The HUD update routines were likely modifying registers (AF, BC, DE, HL) that contained important values
+	;for sprite updates
+	;Without preserving these registers, the sprite routines would receive incorrect values
+	;By pushing registers before HUD updates and popping them after, we ensure sprite-related data remains intact
+	;digamos que el hud modifica estos registros y luego causa problemas
+	; asi que los guardamos para volver a usarlos luego de cargar el hud, si no no saldria
+	push af
+    push bc
+    push de
+    push hl
+	call UpdateHUDGraphics
+
+ ; Restore registers
+    pop hl
+    pop de
+    pop bc
+    pop af
+    
+    ; Now update all sprites
     call copy_enemies_to_oam
     call UpdateBulletSprites
     call UpdatePlayer_UpdateSprite
+    
     jp game_loop
 
 

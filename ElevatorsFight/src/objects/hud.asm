@@ -138,8 +138,6 @@ InitHUD::
     or c
     jr nz, .copyTiles
 
-
-
     ; Write "SCORE:" at $9A0B 
     ld hl, $9A0B
     ld a, LETTER_S
@@ -157,10 +155,17 @@ InitHUD::
     ld a, LETTER_SPACE
     ld [hl+], a
     
-     ; Initialize score display
+    ; Initialize score display
     ld hl, $9A13          ; Position after "SCORE: "
     ld a, NUMBER_START    ; Display initial "0"
     ld [hl+], a
+    
+    ; Draw the initial hearts
+    ld hl, $9A01          ; Position for first heart
+    ld a, HEART_TILE      ; Heart tile
+    ld [hl+], a           ; First heart
+    ld [hl+], a           ; Second heart
+    ld [hl], a            ; Third heart
     
     ; Initialize variables
     xor a
