@@ -331,6 +331,7 @@ main:
 
 	call initialize_enemies
 
+
 	call InitHUD
 
 	; ; Copia los tiles de la bola

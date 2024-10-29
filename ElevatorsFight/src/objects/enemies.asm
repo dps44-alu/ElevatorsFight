@@ -10,7 +10,7 @@ SECTION "Enemy Code", ROM0
 ; Initialize all enemies
 initialize_enemies::
     ; Reset enemy counter
-    ld a, TOTAL_ENEMIES_LVL1
+    ld a, TOTAL_ENEMIES_LVL1;mirar la variable de max enemies
     ld [wCurrentEnemies], a
     
     xor a

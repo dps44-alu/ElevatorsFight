@@ -10,9 +10,9 @@ SECTION "Player", ROM0
 inicializarNave::
     xor a
     ; Inicializar la posición de la nave en coordenadas específicas
-    ld a, 24
+    ld a, 80
     ld [posicionNaveX], a
-    ld a, 144
+    ld a, 120
     ld [posicionNaveY], a
 
     ; Copiar tiles a VRAM (esto debe hacerse durante VBLANK o con la pantalla apagada)
@@ -55,9 +55,11 @@ updateNave_HandleInput:
 UpdatePlayer_UpdateSprite::
     ; x position in b
     ld a, [posicionNaveX]
+    add 8          ; Add 8 for hardware X offset
     ld b, a
     ; y position in c
     ld a, [posicionNaveY]
+    add 16         ; Add 16 for hardware Y offset
     ld c, a
 
     ; Actualiza OAM
@@ -81,10 +83,10 @@ TryShoot:
     ret z
     jp FireBullet
 
-; Movement functions
+; Movement functions; Movement functions with corrected screen boundaries
 MoveUp:
     ld a, [posicionNaveY]
-    cp 16              ; Límite superior (ajusta según necesites)
+    cp 0              ; Upper limit (top of screen)
     ret z
     sub 1
     ld [posicionNaveY], a
@@ -92,7 +94,7 @@ MoveUp:
 
 MoveDown:
     ld a, [posicionNaveY]
-    cp 144            ; Límite inferior (ajusta según necesites)
+    cp 128            ; Lower limit (144 - 16 for sprite height)
     ret z
     add 1
     ld [posicionNaveY], a
@@ -100,7 +102,7 @@ MoveDown:
 
 MoveLeft:
     ld a, [posicionNaveX]
-    cp 8              ; Límite izquierdo (ajusta según necesites)
+    cp 0              ; Left limit (left edge of screen)
     ret z
     sub 1
     ld [posicionNaveX], a
@@ -108,7 +110,7 @@ MoveLeft:
 
 MoveRight:
     ld a, [posicionNaveX]
-    cp 160            ; Límite derecho (ajusta según necesites)
+    cp 152            ; Right limit (160 - 8 for sprite width)
     ret z
     add 1
     ld [posicionNaveX], a
