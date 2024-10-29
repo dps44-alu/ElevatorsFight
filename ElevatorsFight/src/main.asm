@@ -329,7 +329,7 @@ main:
 
 	call initializeBullet
 
-	call initialize_enemy
+	call initialize_enemies
 
 	; ; Copia los tiles de la bola
     ; ld de, ball
@@ -345,7 +345,7 @@ main:
 
 	call clear_oam
 
-	call copy_enemy_to_oam
+	call copy_enemies_to_oam
 
 	; ; Inicializa el sprite de la nave en la OAM
 	; ;ESTE ES NUESTRO JUGADOR
@@ -403,13 +403,13 @@ main:
 game_loop:
 	call update_keys
 
-	call move_enemy
+	call move_enemies
 
 	call updateNave
 
 	call wait_vblank_start
 
-	call copy_enemy_to_oam
+	call copy_enemies_to_oam
 
 	call UpdatePlayer_UpdateSprite
 

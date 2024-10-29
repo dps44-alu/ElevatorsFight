@@ -1,32 +1,57 @@
 INCLUDE "hardware.inc"
 
-
 SECTION "Enemy Constants", ROM0
-DEF ENEMY_MIN_X     EQU 8       ; Límite izquierdo de la pantalla
-DEF ENEMY_MAX_X     EQU 152     ; Límite derecho de la pantalla
-DEF ENEMY_SPEED     EQU 1       ; Velocidad de movimiento
-DEF MOVE_DELAY      EQU 8       ; Se moverá cada 8 frames
+DEF ENEMY_MIN_X     EQU 8 ; Límite izquierdo de la pantalla
+DEF ENEMY_MAX_X     EQU 152 ; Límite derecho de la pantalla
+DEF ENEMY_SPEED     EQU 1 ; Velocidad de movimiento
+DEF MOVE_DELAY      EQU 4 ; Se moverá cada 4 frames
+DEF ENEMY_COUNT     EQU 3 ; Número de enemigos
 
 
 SECTION "Enemies Atributes", WRAM0
-enemyX:             DS 1        ; Variable de 1 byte para la posición X
-enemyY:             DS 1        ; Variable de 1 byte para la posición Y
-enemy_direction:    DS 1        ; 0 = derecha, 1 = izquierda
-enemy_timer:        DS 1        ; Contador para ralentizar el movimiento
+enemyX:             DS ENEMY_COUNT ; Array de 3 bytes para la posición X
+enemyY:             DS ENEMY_COUNT ; Array de 3 bytes para la posición Y
+enemy_direction:    DS ENEMY_COUNT ; Array de 3 bytes para la dirección
+enemy_timer:        DS ENEMY_COUNT ; Array de 3 bytes para los contadores
 
 
 SECTION "Enemy", ROM0
 
-initialize_enemy:
-    xor a                       ; A = 0
-    ld [enemy_direction], a     ; Primero derecha
-    ld [enemy_timer], a        
+initialize_enemies:
+    ld d, ENEMY_COUNT   ; Contador de enemigos
+    ld e, 0             ; Suma posición para que no estén todos en la misma
+    ld b, 0             ; Siempre 0 para que las operaciones funcionen
+    ld c, 0             ; Índice del enemigo
 
-    ld a, 84
-    ld [enemyX], a              ; X = 1/2 pantalla
+    .loop
+        xor a
 
-    ld a, 40
-    ld [enemyY], a              ; Y = arriba cerca del borde
+        ld hl, enemy_direction      ; 0 = derecha
+        add hl, bc
+        ld [hl], a
+
+        ld hl, enemy_timer
+        add hl, bc
+        ld [hl], a
+
+        ld a, e
+        add 30
+        ld hl, enemyX
+        add hl, bc
+        ld [hl], a
+
+        ld a, e
+        ld hl, enemyY
+        add hl, bc
+        ld [hl], a
+
+        inc c                       ; enemigo1, enemigo2 y enemigo3
+        dec d                       ; 3 enemigos, 2 enemigos, 1 enemigo
+        xor a 
+        ld a, e
+        add 10
+        ld e, a
+        jr nz, .loop
 
     call copy_enemy_tiles_to_vram
     ret
@@ -41,68 +66,117 @@ copy_enemy_tiles_to_vram:
     ret
 
 
-copy_enemy_to_oam:
-    ld hl, _OAMRAM + 44 ; Establece la dirección base en la OAM para la nave
+copy_enemies_to_oam:
+    ld b, ENEMY_COUNT
+    ld c, 0 ; Índice del enemigo
+    ld de, _OAMRAM + 44 ; Establece la dirección base en la OAM para el primer enemigo
 
-    ld a, [enemyY]
-    ld [hl+], a
+    .loop
+        push bc
 
-    ld a, [enemyX]
-    ld [hl+], a
+        ld b, 0
 
-    ld a, 2             ; Tercer tile
-    ld [hl+], a
+        ld hl, enemyY
+        add hl, bc
+        ld a, [hl]
+        ld [de], a
+        inc de
 
-    xor a               ; Sin propiedades especiales
-    ld [hl], a
+        ld hl, enemyX
+        add hl, bc
+        ld a, [hl]
+        ld [de], a
+        inc de
+
+        ld a, 2         ; Tercer tile
+        ld [de], a
+        inc de
+
+        xor a           ; Sin propiedades especiales
+        ld [de], a
+        inc de
+
+        pop bc
+
+        inc c
+        dec b   ;;;;;
+        jr nz, .loop
 
     ret
 
 
-move_enemy:
-    ; Incrementa el contador
-    ld a, [enemy_timer]
-    inc a
-    ld [enemy_timer], a
-    
-    ; Comprueba si debemos mover
-    cp MOVE_DELAY
-    ret nz                 ; Si no es el momento, retorna
-    
-    ; Reinicia el contador
-    xor a
-    ld [enemy_timer], a
+move_enemies:
+    ld e, ENEMY_COUNT   ; Contador de enemigos
+    ld b, 0             ; Siempre 0 para que las operaciones funcionen
+    ld c, 0             ; Índice del enemigo
 
-    ; Comprueba la dirección actual
-    ld a, [enemy_direction]
-    and a                   ; Compara con 0
-    jr nz, .move_left
+    .loop   
+        ld hl, enemy_timer
+        add hl, bc
+        ld a, [hl]          ; A = enemy_timer
+        inc a
+        ld [hl], a          ; enemy_timer += 1
 
-    .move_right:
-        ; Mueve a la derecha
-        ld a, [enemyX]
-        cp ENEMY_MAX_X         ; Compara con el límite derecho
-        jr nc, .change_to_left ; Si llegamos al límite, cambia dirección
-        add ENEMY_SPEED        ; Suma la velocidad
-        ld [enemyX], a
-        ret
+        ; Si timer == MOVE_DELAY, mueve, sino sigue con el siguiente
+        cp MOVE_DELAY  
+        jr nz, .next
 
-    .move_left:
-        ; Mueve a la izquierda
-        ld a, [enemyX]
-        cp ENEMY_MIN_X         ; Compara con el límite izquierdo
-        jr c, .change_to_right ; Si llegamos al límite, cambia dirección
-        sub ENEMY_SPEED        ; Resta la velocidad
-        ld [enemyX], a
-        ret
+        ; Actualiza timer
+        xor a
+        ld [hl], a          ; enemy_timer = 0
 
-    .change_to_left:
-        ld a, 1
-        ld [enemy_direction], a
-        ret
+        ; Comprueba la dirección actual
+        ld hl, enemy_direction
+        add hl, bc
+        ld a, [hl]
+        and a
+        jr nz, .move_left
 
-    .change_to_right:
-        xor a                  ; a = 0
-        ld [enemy_direction], a
-        ret
+        .move_right:
+            ld hl, enemyX
+            add hl, bc
+            ld a, [hl]      
 
+            cp ENEMY_MAX_X              ; Compara con el limite derecho
+
+            jr nc, .change_to_left      ; Si llegamos al límite, cambia dirección
+
+            add ENEMY_SPEED             ; Suma la velocidad
+
+            ld [hl], a              ; enemyX += enemy_speed
+            jr .next
+
+        .move_left:
+            ld hl, enemyX
+            add hl, bc
+            ld a, [hl]
+
+            cp ENEMY_MIN_X              ; Compara con el limite derecho
+
+            jr c, .change_to_right     ; Si llegamos al límite, cambia dirección
+
+            sub ENEMY_SPEED             ; Suma la velocidad
+
+            ld [hl], a              ; enemyX += enemy_speed
+            jr .next
+
+        .change_to_left:
+            ld hl, enemy_direction
+            add hl, bc
+            ld a, 1                     ; 1 = izquierda
+            ld [hl], a
+            jr .next 
+
+        .change_to_right:
+            ld hl, enemy_direction
+            add hl, bc
+            xor a                       ; 0 = derecha
+            ld [hl], a
+            jr .next 
+
+        .next:
+            inc c
+            dec e
+            jr nz, .loop
+        
+    ret
