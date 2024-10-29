@@ -1,182 +1,269 @@
-INCLUDE "hardware.inc"
+INCLUDE "objects/constants.asm"
 
-SECTION "Enemy Constants", ROM0
-DEF ENEMY_MIN_X     EQU 8 ; Límite izquierdo de la pantalla
-DEF ENEMY_MAX_X     EQU 152 ; Límite derecho de la pantalla
-DEF ENEMY_SPEED     EQU 1 ; Velocidad de movimiento
-DEF MOVE_DELAY      EQU 4 ; Se moverá cada 4 frames
-DEF ENEMY_COUNT     EQU 3 ; Número de enemigos
+SECTION "Enemy Variables", WRAM0
+wEnemyArray: DS MAX_ENEMIES * ENEMY_STRUCT_SIZE  ; Array to store enemy data
+wCurrentEnemies: DS 1                            ; Current number of active enemies
+wEnemyTimer: DS 1                                ; Shared movement timer
 
+SECTION "Enemy Code", ROM0
 
-SECTION "Enemies Atributes", WRAM0
-enemyX:             DS ENEMY_COUNT ; Array de 3 bytes para la posición X
-enemyY:             DS ENEMY_COUNT ; Array de 3 bytes para la posición Y
-enemy_direction:    DS ENEMY_COUNT ; Array de 3 bytes para la dirección
-enemy_timer:        DS ENEMY_COUNT ; Array de 3 bytes para los contadores
+; Initialize all enemies
+initialize_enemies::
+    ; Reset enemy counter
+    ld a, TOTAL_ENEMIES_LVL1
+    ld [wCurrentEnemies], a
+    
+    xor a
+    ld [wEnemyTimer], a
 
+    ; Initialize enemy array
+    ld hl, wEnemyArray
+    ld b, TOTAL_ENEMIES_LVL1
+    ld c, 0           ; Enemy spacing counter
 
-SECTION "Enemy", ROM0
-
-initialize_enemies:
-    ld d, ENEMY_COUNT   ; Contador de enemigos
-    ld e, 0             ; Suma posición para que no estén todos en la misma
-    ld b, 0             ; Siempre 0 para que las operaciones funcionen
-    ld c, 0             ; Índice del enemigo
-
-    .loop
-        xor a
-
-        ld hl, enemy_direction      ; 0 = derecha
-        add hl, bc
-        ld [hl], a
-
-        ld hl, enemy_timer
-        add hl, bc
-        ld [hl], a
-
-        ld a, e
-        ld hl, enemyX
-        add hl, bc
-        ld [hl], a              ; enemyX = 30, 
-
-        ld a, e
-        add 30
-        ld hl, enemyY
-        add hl, bc
-        ld [hl], a
-
-        inc c                       ; enemigo1, enemigo2 y enemigo3
-        dec d                       ; 3 enemigos, 2 enemigos, 1 enemigo
-        xor a 
-        ld a, e
-        add 10
-        ld e, a
-        jr nz, .loop
+.init_loop:
+    ; Set X position (spaced horizontally)
+    ld a, 40
+    add a, c          ; Add spacing
+    ld [hl+], a       ; Store X
+    
+    ; Set Y position
+    ld a, 40
+    ld [hl+], a       ; Store Y
+    
+    ; Set direction (0 = right)
+    xor a
+    ld [hl+], a       ; Store direction
+    
+    ; Set active status (1 = active)
+    ld a, 1
+    ld [hl+], a       ; Store active status
+    
+    ; Increase spacing for next enemy
+    ld a, 30
+    add a, c
+    ld c, a
+    
+    dec b
+    jr nz, .init_loop
 
     call copy_enemy_tiles_to_vram
     ret
 
-
+; Copy enemy sprite data to VRAM
 copy_enemy_tiles_to_vram:
-    ; Copia los datos del tile del enemigo en la VRAM
     ld de, nave2
     ld hl, $8020
     ld bc, nave2end - nave2
     call mem_copy
     ret
 
+; Update OAM for all enemies
+copy_enemies_to_oam::
+    ld hl, wEnemyArray
+    ld de, _OAMRAM + 44    ; Starting OAM address for enemies
+    ld b, MAX_ENEMIES
 
-copy_enemies_to_oam:
-    ld b, ENEMY_COUNT
-    ld c, 0 ; Índice del enemigo
-    ld de, _OAMRAM + 44 ; Establece la dirección base en la OAM para el primer enemigo
+.copy_loop:
+    ; Check if enemy is active
+    push bc
+    ld a, [hl+]        ; Get X
+    ld b, a
+    ld a, [hl+]        ; Get Y
+    ld c, a
+    inc hl             ; Skip direction
+    ld a, [hl+]        ; Get active status
+    and a
+    jr z, .skip_enemy  ; Skip if inactive
 
-    .loop
-        push bc
+    ; Copy to OAM
+    ld a, c
+    ld [de], a         ; Y position
+    inc de
+    ld a, b
+    ld [de], a         ; X position
+    inc de
+    ld a, 2            ; Tile number
+    ld [de], a
+    inc de
+    xor a              ; Attributes
+    ld [de], a
+    inc de
+    
+    jr .continue
 
-        ld b, 0
+.skip_enemy:
+    ; Clear OAM entry
+    xor a
+    ld [de], a
+    inc de
+    ld [de], a
+    inc de
+    ld [de], a
+    inc de
+    ld [de], a
+    inc de
 
-        ld hl, enemyY
-        add hl, bc
-        ld a, [hl]
-        ld [de], a
-        inc de
-
-        ld hl, enemyX
-        add hl, bc
-        ld a, [hl]
-        ld [de], a
-        inc de
-
-        ld a, 2         ; Tercer tile
-        ld [de], a
-        inc de
-
-        xor a           ; Sin propiedades especiales
-        ld [de], a
-        inc de
-
-        pop bc
-
-        inc c
-        dec b  
-        jr nz, .loop
-
+.continue:
+    pop bc
+    dec b
+    jr nz, .copy_loop
     ret
 
+; Move all active enemies
+; Move all active enemies; Move all active enemies
+move_enemies::
+    ; Update timer
+    ld a, [wEnemyTimer]
+    inc a
+    ld [wEnemyTimer], a
+    cp MOVE_DELAY
+    ret nz
 
-move_enemies:
-    ld e, ENEMY_COUNT   ; Contador de enemigos
-    ld b, 0             ; Siempre 0 para que las operaciones funcionen
-    ld c, 0             ; Índice del enemigo
+    ; Reset timer
+    xor a
+    ld [wEnemyTimer], a
 
-    .loop   
-        ld hl, enemy_timer
-        add hl, bc
-        ld a, [hl]          ; A = enemy_timer
-        inc a
-        ld [hl], a          ; enemy_timer += 1
+    ; Move each enemy
+    ld hl, wEnemyArray
+    ld b, MAX_ENEMIES
 
-        ; Si timer == MOVE_DELAY, mueve, sino sigue con el siguiente
-        cp MOVE_DELAY  
-        jr nz, .next
+.move_loop:
+    push bc
+    push hl
 
-        ; Actualiza timer
-        xor a
-        ld [hl], a          ; enemy_timer = 0
+    ; Check if enemy is active
+    ld bc, ENEMY_ACTIVE_OFFSET
+    add hl, bc         ; Point to active status
+    ld a, [hl]
+    and a
+    jr z, .next_enemy  ; Skip if inactive
 
-        ; Comprueba la dirección actual
-        ld hl, enemy_direction
-        add hl, bc
-        ld a, [hl]
-        and 1
-        jr nz, .move_left
+    ; Get back to start of enemy struct
+    pop hl
+    push hl
+    
+    ; Get X position and direction
+    ld a, [hl]         ; Get X position
+    ld b, a            ; Store X in B
+    inc hl
+    inc hl             ; Point to direction
+    ld a, [hl]         ; Get direction
+    and a              ; Check if 0 (right) or 1 (left)
+    jr nz, .move_left  ; If direction is 1, move left
 
-        .move_right:
-            ld hl, enemyX
-            add hl, bc
-            ld a, [hl]      
+.move_right:
+    ld a, b            ; Get X position back
+    cp ENEMY_MAX_X     ; Compare with right boundary
+    jr nc, .change_to_left
+    add ENEMY_SPEED    ; Move right
+    pop hl             ; Get array pointer
+    push hl
+    ld [hl], a         ; Update X position
+    jr .next_enemy
 
-            cp ENEMY_MAX_X              ; Compara con el limite derecho
+.move_left:
+    ld a, b            ; Get X position back
+    cp ENEMY_MIN_X     ; Compare with left boundary
+    jr c, .change_to_right
+    sub ENEMY_SPEED    ; Move left
+    pop hl             ; Get array pointer
+    push hl
+    ld [hl], a         ; Update X position
+    jr .next_enemy
 
-            jr nc, .change_to_left      ; Si llegamos al límite, cambia dirección
+.change_to_left:
+    ; First update direction to left (1)
+    pop hl             ; Get array pointer
+    push hl
+    inc hl
+    inc hl             ; Point to direction
+    ld a, 1
+    ld [hl], a         ; Set direction to left
+    ; Then move one step left
+    dec hl
+    dec hl             ; Back to X position
+    ld a, [hl]         ; Get current X
+    sub ENEMY_SPEED    ; Move left
+    ld [hl], a         ; Update X position
+    jr .next_enemy
 
-            add ENEMY_SPEED             ; Suma la velocidad
+.change_to_right:
+    ; First update direction to right (0)
+    pop hl             ; Get array pointer
+    push hl
+    inc hl
+    inc hl             ; Point to direction
+    xor a
+    ld [hl], a         ; Set direction to right
+    ; Then move one step right
+    dec hl
+    dec hl             ; Back to X position
+    ld a, [hl]         ; Get current X
+    add ENEMY_SPEED    ; Move right
+    ld [hl], a         ; Update X position
 
-            ld [hl], a              ; enemyX += enemy_speed
-            jr .next
+.next_enemy:
+    pop hl             ; Restore array pointer
+    ld de, ENEMY_STRUCT_SIZE
+    add hl, de         ; Point to next enemy
+    pop bc
+    dec b
+    jr nz, .move_loop
+    ret
 
-        .move_left:
-            ld hl, enemyX
-            add hl, bc
-            ld a, [hl]
+; Deactivate enemy at specified index
+; Input: A = enemy index
+; Deactivate enemy at specified index
+; Input: A = enemy index
+deactivate_enemy::
+    push hl
+    push bc
+    push de
+    
+    ; Save enemy index
+    ld c, a            ; Save index in C
+    
+    ; Calculate enemy address
+    ld hl, wEnemyArray
+    ld d, 0
+    ld e, ENEMY_STRUCT_SIZE
+    
+.multiply_loop:        ; Multiply index by ENEMY_STRUCT_SIZE
+    ld a, c
+    and a             ; Check if index is zero
+    jr z, .done_multiply
+    add hl, de        ; Add ENEMY_STRUCT_SIZE to HL
+    dec c
+    jr .multiply_loop
+    
+.done_multiply:
+    ; Point to active status
+    ld bc, ENEMY_ACTIVE_OFFSET
+    add hl, bc
+    
+    ; Deactivate enemy
+    xor a
+    ld [hl], a
+    
+    ; Decrease enemy counter
+    ld a, [wCurrentEnemies]
+    dec a
+    ld [wCurrentEnemies], a
+    
+    pop de
+    pop bc
+    pop hl
+    ret
 
-            cp ENEMY_MIN_X              ; Compara con el limite derecho
-
-            jr c, .change_to_right     ; Si llegamos al límite, cambia dirección
-
-            sub ENEMY_SPEED             ; Suma la velocidad
-
-            ld [hl], a              ; enemyX += enemy_speed
-            jr .next
-
-        .change_to_left:
-            ld hl, enemy_direction
-            add hl, bc
-            ld a, 1                     ; 1 = izquierda
-            ld [hl], a
-            jr .next 
-
-        .change_to_right:
-            ld hl, enemy_direction
-            add hl, bc
-            xor a                       ; 0 = derecha
-            ld [hl], a
-            jr .next 
-
-        .next:
-            inc c
-            dec e
-            jr nz, .loop
-        
+; Multiply BC by A
+; Returns: HL = BC * A
+multiply:
+    ld hl, 0
+    and a
+    ret z
+.loop:
+    add hl, bc
+    dec a
+    jr nz, .loop
     ret

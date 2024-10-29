@@ -348,6 +348,10 @@ main:
 	call clear_oam
 
 	call copy_enemies_to_oam
+	call check_bullet_enemy_collisions ; In game loop
+
+
+
 
 	; ; Inicializa el sprite de la nave en la OAM
 	; ;ESTE ES NUESTRO JUGADOR
@@ -402,36 +406,22 @@ main:
 	ld [wNewKeys], a
 
 
+; main.asm (game loop section)
 game_loop:
-    ; Lógica (fuera de VBLANK)
+    ; Update game logic (no need to wait for VBlank)
     call update_keys
-    call move_enemies
     call updateNave
     call UpdateBulletLogic
-	call UpdateHUDLogic
+    call move_enemies
+    call check_bullet_enemy_collisions
     
-    ; Comprobar colisiones (lógica)
-    ld a, [enemyX]
-    ld b, a
-    ld a, [enemyY]
-    ld c, a
-    call UpdateCollisionLogic
-
-    ; Esperar VBLANK para actualizaciones visuales
+    ; Wait for VBlank only before updating sprites
     call wait_vblank_start
-
-    ; Actualizaciones de OAM (durante VBLANK)
-    ; Solo copiamos el enemigo si está activo
-    ld a, [wEnemyCollisionActive]
-    and a
-    call nz, copy_enemies_to_oam  ; Solo dibuja el enemigo si está activo
-    
-    call UpdatePlayer_UpdateSprite
+    ; Update all sprites at once
+    call copy_enemies_to_oam
     call UpdateBulletSprites
-    call UpdateCollisionSprites
-	call UpdateHUDGraphics
-
-	jp game_loop
+    call UpdatePlayer_UpdateSprite
+    jp game_loop
 
 
 
