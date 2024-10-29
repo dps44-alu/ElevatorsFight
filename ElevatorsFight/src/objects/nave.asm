@@ -1,127 +1,115 @@
 include "src/hardware.inc"
 
 SECTION "VariablesNave", WRAM0
-
 ; Definir variables para almacenar las posiciones X e Y de la nave
-
-posicionNaveX: ds 1  ; Variable de 1 byte para la posición X
-posicionNaveY: ds 1  ; Variable de 1 byte para la posición Y
+posicionNaveX: ds 1 ; Variable de 1 byte para la posición X
+posicionNaveY: ds 1 ; Variable de 1 byte para la posición Y
 
 SECTION "Player", ROM0
 
 inicializarNave::
-    xor a ;LIMPIAMOS REGISTRO A
-    ; Inicializar la posición de la nave en coordenadas específicas (por ejemplo, X = 10, Y = 20)
+    xor a
+    ; Inicializar la posición de la nave en coordenadas específicas
     ld a, 24
-    ld [posicionNaveX], a  ; Guardar en la variable posicionNaveX
-
+    ld [posicionNaveX], a
     ld a, 144
-    ld [posicionNaveY], a  ; Guardar en la variable posicionNaveY
+    ld [posicionNaveY], a
 
-copiarTilesnaveVram:
-    ; Copy the player's tile data into VRAM
+    ; Copiar tiles a VRAM (esto debe hacerse durante VBLANK o con la pantalla apagada)
     ld de, nave
     ld hl, $8000
     ld bc, naveend - nave
     call mem_copy
+    ret
 
+; Actualiza la lógica de la nave (posiciones, disparos, etc.)
+; Esta función puede llamarse en cualquier momento
 updateNave::
+    call updateNave_HandleInput
+    ret
 
+; Maneja la entrada del jugador y actualiza las posiciones
 updateNave_HandleInput:
     ld a, [wCurKeys]
     and PADF_UP
     call nz, MoveUp
-
+    
     ld a, [wCurKeys]
     and PADF_DOWN
     call nz, MoveDown
-
+    
     ld a, [wCurKeys]
     and PADF_LEFT
     call nz, MoveLeft
-
+    
     ld a, [wCurKeys]
     and PADF_RIGHT
     call nz, MoveRight
-
-    ld a, [wCurKeys]
-	and PADF_A
-	call nz, TryShoot
-
     
-    ; call UpdatePlayer_UpdateSprite
+    ld a, [wCurKeys]
+    and PADF_A
+    call nz, TryShoot
     ret
 
-
-UpdatePlayer_UpdateSprite:
+; Actualiza el sprite en OAM (DEBE llamarse durante VBLANK)
+UpdatePlayer_UpdateSprite::
     ; x position in b
     ld a, [posicionNaveX]
     ld b, a
-
     ; y position in c
     ld a, [posicionNaveY]
     ld c, a
 
-    ; Establece la dirección base en la OAM para la nave
+    ; Actualiza OAM
     ld hl, _OAMRAM
-
-    ; Escribir la posición Y sin incrementar `hl`
+    ; Y position
     ld a, c
-    ld [hl], a
-
-    ; Escribir la posición X sin incrementar `hl`
-    inc hl
+    ld [hl+], a
+    ; X position
     ld a, b
-    ld [hl], a
-
-    ; Primer tile en la memoria de tiles sin incrementar `hl`
-    inc hl
+    ld [hl+], a
+    ; Tile number
     xor a
+    ld [hl+], a
+    ; Attributes
     ld [hl], a
-
-    ; Sprite sin propiedades especiales sin incrementar `hl`
-    inc hl
-    ld [hl], a
-
     ret
 
-
 TryShoot:
-    ld a, [wCurKeys]   ; Cargar el estado actual de los botones
-    and PADF_A         ; Comprobar si el botón A está presionado
-    ret z              ; Salir si A no está presionado
+    ld a, [wCurKeys]
+    and PADF_A
+    ret z
     jp FireBullet
 
-;;DAMAgeplayer
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Movement functions
 MoveUp:
-    ; Decrease the player's y position
     ld a, [posicionNaveY]
-    sub 1                  ; Velocidad fija de 1 píxel
+    cp 16              ; Límite superior (ajusta según necesites)
+    ret z
+    sub 1
     ld [posicionNaveY], a
     ret
 
 MoveDown:
-    ; Increase the player's y position
     ld a, [posicionNaveY]
-    add 1                  ; Velocidad fija de 1 píxel
+    cp 144            ; Límite inferior (ajusta según necesites)
+    ret z
+    add 1
     ld [posicionNaveY], a
     ret
 
 MoveLeft:
-    ; Decrease the player's x position
     ld a, [posicionNaveX]
-    sub 1                  ; Velocidad fija de 1 píxel
+    cp 8              ; Límite izquierdo (ajusta según necesites)
+    ret z
+    sub 1
     ld [posicionNaveX], a
     ret
 
 MoveRight:
-    ; Increase the player's x position
     ld a, [posicionNaveX]
-    add 1                  ; Velocidad fija de 1 píxel
+    cp 160            ; Límite derecho (ajusta según necesites)
+    ret z
+    add 1
     ld [posicionNaveX], a
     ret
-; ANCHOR_END: player-update-sprite

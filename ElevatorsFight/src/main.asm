@@ -331,6 +331,8 @@ main:
 
 	call initialize_enemies
 
+	call InitHUD
+
 	; ; Copia los tiles de la bola
     ; ld de, ball
     ; ld hl, $8010
@@ -401,21 +403,35 @@ main:
 
 
 game_loop:
-	call update_keys
+    ; Lógica (fuera de VBLANK)
+    call update_keys
+    call move_enemies
+    call updateNave
+    call UpdateBulletLogic
+	call UpdateHUDLogic
+    
+    ; Comprobar colisiones (lógica)
+    ld a, [enemyX]
+    ld b, a
+    ld a, [enemyY]
+    ld c, a
+    call UpdateCollisionLogic
 
-	call move_enemies
+    ; Esperar VBLANK para actualizaciones visuales
+    call wait_vblank_start
 
-	call updateNave
+    ; Actualizaciones de OAM (durante VBLANK)
+    ; Solo copiamos el enemigo si está activo
+    ld a, [wEnemyCollisionActive]
+    and a
+    call nz, copy_enemies_to_oam  ; Solo dibuja el enemigo si está activo
+    
+    call UpdatePlayer_UpdateSprite
+    call UpdateBulletSprites
+    call UpdateCollisionSprites
+	call UpdateHUDGraphics
 
-	call wait_vblank_start
-
-	call copy_enemies_to_oam
-
-	call UpdatePlayer_UpdateSprite
-
-	call UpdateBullet
-
-    jp game_loop
+	jp game_loop
 
 
 

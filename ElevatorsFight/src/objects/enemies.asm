@@ -35,12 +35,12 @@ initialize_enemies:
         ld [hl], a
 
         ld a, e
-        add 30
         ld hl, enemyX
         add hl, bc
-        ld [hl], a
+        ld [hl], a              ; enemyX = 30, 
 
         ld a, e
+        add 30
         ld hl, enemyY
         add hl, bc
         ld [hl], a
@@ -99,7 +99,7 @@ copy_enemies_to_oam:
         pop bc
 
         inc c
-        dec b   ;;;;;
+        dec b  
         jr nz, .loop
 
     ret
@@ -129,7 +129,7 @@ move_enemies:
         ld hl, enemy_direction
         add hl, bc
         ld a, [hl]
-        and a
+        and 1
         jr nz, .move_left
 
         .move_right:

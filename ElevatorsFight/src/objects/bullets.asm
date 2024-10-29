@@ -1,4 +1,5 @@
 include "hardware.inc"
+
 SECTION "BulletVariables", WRAM0
 wBulletActive: ds 10        ; Array of 10 active bullets (1 = active, 0 = inactive)
 wBulletPosX: ds 10          ; Array of X positions for each bullet
@@ -7,8 +8,8 @@ wShootDelay: ds 1          ; Counter for shooting delay
 
 SECTION "Bullet", ROM0
 
-initializeBullet:
-    ; Load bullet sprite into VRAM
+initializeBullet::
+    ; Load bullet sprite into VRAM (debe hacerse durante VBLANK o con pantalla apagada)
     ld de, bala_vertical          
     ld hl, $8010                  
     ld bc, bala_vertical_end - bala_vertical
@@ -30,6 +31,7 @@ initializeBullet:
     ld [wShootDelay], a         ; Start with no delay
     ret
 
+; Puede llamarse en cualquier momento - maneja la lógica de disparo
 FireBullet::
     ; First check if we're still in delay
     ld a, [wShootDelay]
@@ -80,7 +82,8 @@ FireBullet::
     ld [hl], a                 
     ret
 
-UpdateBullet::
+; Actualiza la lógica de las balas (puede llamarse en cualquier momento)
+UpdateBulletLogic::
     ; First update the shoot delay
     ld a, [wShootDelay]
     and a                       ; Check if delay is active
@@ -112,14 +115,47 @@ UpdateBullet::
     ; Check if off screen
     cp 16                    
     jr c, .deactivateBullet
+    jr .nextBullet
 
-    ; Get X position for OAM
-    push hl                  ; Save Y position pointer
+.deactivateBullet:
+    ; Deactivate bullet
+    ld hl, wBulletActive
+    ld b, 0
+    add hl, bc
+    xor a
+    ld [hl], a
+
+.nextBullet:
+    pop bc                 
+    inc c
+    ld a, c
+    cp 10                  
+    jr nz, .updateLoop
+    ret
+
+; Actualiza los sprites de las balas en OAM (DEBE llamarse durante VBLANK)
+UpdateBulletSprites::
+    ld c, 0                   ; Bullet index
+.updateLoop:
+    push bc
+
+    ; Check if bullet is active
+    ld hl, wBulletActive
+    ld b, 0
+    add hl, bc
+    ld a, [hl]
+    and a
+    jr z, .clearSprite        ; Si está inactiva, limpia el sprite
+
+    ; Get positions for OAM
     ld hl, wBulletPosX
     ld b, 0
     add hl, bc
     ld d, [hl]              ; Save X position in D
-    pop hl                  ; Get Y position pointer back
+    
+    ld hl, wBulletPosY
+    ld b, 0
+    add hl, bc
     ld e, [hl]              ; Save Y position in E
 
     ; Update OAM
@@ -143,16 +179,9 @@ UpdateBullet::
     ld [hl], a
     
     pop bc
-    jr .nextBullet
+    jr .nextSprite
 
-.deactivateBullet:
-    ; Deactivate bullet
-    ld hl, wBulletActive
-    ld b, 0
-    add hl, bc
-    xor a
-    ld [hl], a
-
+.clearSprite:
     ; Clear from OAM
     push bc
     ld hl, _OAMRAM + 4     
@@ -170,7 +199,7 @@ UpdateBullet::
     ld [hl], a             ; Clear attributes
     pop bc
 
-.nextBullet:
+.nextSprite:
     pop bc                 
     inc c
     ld a, c
