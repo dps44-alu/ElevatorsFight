@@ -313,6 +313,9 @@ enemies_shoots:
         jr .next_enemy
 
         .continue2
+            ld a, ENEMY_DELAY_SHOOT
+            ld [hl], a                  ; Reinicial el delay del disparo
+
             ld hl, wEnemyArray  ; Array de enemigos -> (X, Y, Direction, Active) -> 0-3, 4-7, 8-11
             ld e, c             ; +0, +4, +8
             add hl, de          ; enemigo1, enemigo2, enemigo3

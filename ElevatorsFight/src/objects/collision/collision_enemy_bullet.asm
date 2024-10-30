@@ -46,6 +46,14 @@ check_bullet_enemy_collisions::
     ld a, [hl]
     and a
     jr z, .next_bullet
+
+    ; Comprueba si la bala la dispara el jugador o el enemigo
+    ld hl, wBulletDirection
+    ld b, 0
+    add hl, bc
+    ld a, [hl]
+    and a
+    jr nz, .next_bullet      ; Si es 1 = up_to_down, la dispara el enemigo y pasamos a la siguiente
     
     ; Get bullet position
     ld hl, wBulletPosX
