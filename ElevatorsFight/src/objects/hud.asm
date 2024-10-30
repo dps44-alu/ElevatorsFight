@@ -139,7 +139,7 @@ InitHUD::
     jr nz, .copyTiles
 
     ; Write "SCORE:" at $9A0B 
-    ld hl, $9A0B
+    ld hl, $9A0A
     ld a, LETTER_S
     ld [hl+], a
     ld a, LETTER_C
@@ -152,12 +152,9 @@ InitHUD::
     ld [hl+], a
     ld a, LETTER_COLON
     ld [hl+], a
-    ld a, LETTER_SPACE
+    ld a, NUMBER_START
     ld [hl+], a
-    
-    ; Initialize score display
-    ld hl, $9A13          ; Position after "SCORE: "
-    ld a, NUMBER_START    ; Display initial "0"
+    ld [hl+], a
     ld [hl+], a
     
     ; Draw the initial hearts

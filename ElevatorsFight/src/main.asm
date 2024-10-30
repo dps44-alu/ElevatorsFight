@@ -413,7 +413,8 @@ game_loop:
     call updateNave
     call UpdateBulletLogic
     call move_enemies
-    call check_bullet_enemy_collisions
+	call enemies_shoots
+    ;call check_bullet_enemy_collisions
     call UpdateHUDLogic
     ; Wait for VBlank only before updating sprites
     call wait_vblank_start

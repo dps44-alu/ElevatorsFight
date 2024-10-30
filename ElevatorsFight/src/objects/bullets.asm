@@ -4,7 +4,8 @@ SECTION "BulletVariables", WRAM0
 wBulletActive: ds 10        ; Array of 10 active bullets (1 = active, 0 = inactive)
 wBulletPosX: ds 10          ; Array of X positions for each bullet
 wBulletPosY: ds 10          ; Array of Y positions for each bullet
-wShootDelay: ds 1          ; Counter for shooting delay
+wShootDelay: ds 1           ; Counter for shooting delay
+wBulletDirection: DS 10     ; 0 = down_to_up, 1 = up_to_down
 
 SECTION "Bullet", ROM0
 
@@ -35,7 +36,7 @@ initializeBullet::
 FireBullet::
     ; First check if we're still in delay
     ld a, [wShootDelay]
-    and a                       ; Check if delay is zero
+    and a                      ; Check if delay is zero
     jr z, .canShoot            ; If zero, we can shoot
     ret                        ; If not zero, return without shooting
 
@@ -67,6 +68,13 @@ FireBullet::
     ; Activate bullet
     ld a, 1
     ld [hl], a                  ; Set as active
+
+    ; Set 0 = down_to_up -> Dispara el jugador 
+    ld hl, wBulletDirection
+    ld b, 0
+    add hl, bc
+    xor a
+    ld [hl], a
 
     ; Set bullet position
     ld hl, wBulletPosX
@@ -103,6 +111,14 @@ UpdateBulletLogic::
     ld a, [hl]
     and a
     jr z, .nextBullet        ; Skip if inactive
+
+    ; Comprueba si la bala la dispara el jugador (0) o el enemigo (1)
+    ld hl, wBulletDirection
+    ld b, 0
+    add hl, bc
+    ld a, [hl]
+    and a
+    jr nz, .nextBullet      ; Skip si la dispara el enemigo
 
     ; Update Y position
     ld hl, wBulletPosY
@@ -146,6 +162,14 @@ UpdateBulletSprites::
     ld a, [hl]
     and a
     jr z, .clearSprite        ; Si está inactiva, limpia el sprite
+
+    ; Comprueba si la bala la dispara el jugador (0) o el enemigo (1)
+    ld hl, wBulletDirection
+    ld b, 0
+    add hl, bc
+    ld a, [hl]
+    and a
+    jr nz, .nextSprite      ; Skip si la dispara el enemigo
 
     ; Get positions for OAM
     ld hl, wBulletPosX
