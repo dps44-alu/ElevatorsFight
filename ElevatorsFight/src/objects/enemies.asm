@@ -33,13 +33,34 @@ initialize_enemies::
 
     ; Initialize the delayShoot array
     ld hl, wEnemyDelayShoot
-    ld a, ENEMY_DELAY_SHOOT
-    ld c, MAX_ENEMIES
+    ld c, MAX_ENEMIES          ; C = 10 enemigos totales
+    
+    ; Primeros 3 enemigos con DELAY_1
+    ld b, 3                    ; Primeros 3 enemigos
+    ld a, ENEMY_DELAY_SHOOT_1
 
-    .delay_shoot_loop
+    .delay_1_loop
         ld [hl+], a
-        dec c
-        jr nz, .delay_shoot_loop
+        dec b
+        jr nz, .delay_1_loop
+        
+        ; Siguientes 4 enemigos con DELAY_2
+        ld b, 4                    ; Siguientes 4 enemigos
+        ld a, ENEMY_DELAY_SHOOT_2
+
+    .delay_2_loop
+        ld [hl+], a
+        dec b
+        jr nz, .delay_2_loop
+        
+        ; Últimos 3 enemigos con DELAY_3
+        ld b, 3                    ; Últimos 3 enemigos
+        ld a, ENEMY_DELAY_SHOOT_3
+
+    .delay_3_loop:
+        ld [hl+], a
+        dec b
+        jr nz, .delay_3_loop
 
     ; Clear all enemies first
     call clear_enemies
@@ -202,7 +223,6 @@ copy_enemy_tiles_to_vram:
     ld hl, $8020
     ld bc, nave2end - nave2
     call mem_copy
-    ret
 
 ; Update OAM for all enemies
 ; Update OAM for all enemies
@@ -410,8 +430,34 @@ enemies_shoots::
             jr .next_enemy
 
         .continue2
-            ld a, ENEMY_DELAY_SHOOT
-            ld [hl], a                  ; Reinicial el delay del disparo
+            ;ld a, ENEMY_DELAY_SHOOT
+            ;ld [hl], a                  ; Reinicial el delay del disparo
+
+            ; Asignar diferentes delays según la posición del enemigo
+            push bc
+            ld a, c        ; A = posición actual (0, 4, 8...)
+            srl a          ; Dividir por 4 para obtener el índice real (0,1,2...)
+            srl a
+            
+            ; Patrón de delays:
+            cp 3           ; Primeros 3 enemigos
+            jr c, .delay1
+            cp 7           ; Siguientes 4 enemigos
+            jr c, .delay2
+            jr .delay3     ; Últimos 3 enemigos
+            
+            .delay1:
+                ld a, ENEMY_DELAY_SHOOT_1
+                jr .set_delay
+            .delay2:
+                ld a, ENEMY_DELAY_SHOOT_2
+                jr .set_delay
+            .delay3:
+                ld a, ENEMY_DELAY_SHOOT_3
+                
+            .set_delay:
+                pop bc
+                ld [hl], a    ; Establecer el nuevo delay
 
             ld hl, wEnemyArray          ; Array de enemigos -> (X, Y, Direction, Active) -> 0-3, 4-7, 8-11
             ld e, c                     ; +0, +4, +8

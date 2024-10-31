@@ -57,7 +57,7 @@ check_bullet_enemy_collisions::
 
     ; Compare X positions
     sub d             ; Bullet X - Enemy X
-    add a, 8          ; Add sprite width
+    add 5
     cp 16             ; Check if within range
     jr nc, .next_bullet
 
@@ -68,7 +68,7 @@ check_bullet_enemy_collisions::
 
     ; Compare Y positions
     sub e             ; Bullet Y - Enemy Y
-    add a, 8          ; Add sprite height
+    add 10
     cp 16             ; Check if within range
     jr nc, .next_bullet
 
@@ -90,6 +90,17 @@ check_bullet_enemy_collisions::
     add hl, bc
     xor a
     ld [hl], a
+
+    ; Add 10 points to score
+    ld hl, wScore
+    ld a, [hl]        ; Get low byte of score
+    add 10            ; Add 10 points
+    ld [hl+], a       ; Store back low byte
+    jr nc, .no_carry  ; If no carry, skip high byte
+    inc [hl]          ; Increment high byte if there was carry
+    .no_carry:
+    ld a, 1
+    ld [wScoreChanged], a  ; Mark score for update
 
     ; Decrease enemy counter - ADD THIS
     ld a, [wCurrentEnemies]

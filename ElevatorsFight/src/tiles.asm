@@ -130,14 +130,14 @@ nave8::
 nave8end::
 
 bala_vertical::
-    db $18, $18  ; Línea 1: Rectángulo central
-    db $18, $18  ; Línea 2: Rectángulo central
-    db $18, $18  ; Línea 3: Rectángulo central
-    db $18, $18  ; Línea 4: Rectángulo central
-    db $18, $18  ; Línea 5: Rectángulo central
-    db $18, $18  ; Línea 6: Rectángulo central
-    db $18, $18  ; Línea 7: Rectángulo central
-    db $00, $00  ; Línea 8: Espacio vacío
+    DB $00, $00   ; Líneas superiores vacías
+    DB $18, $18   ; Bordes del proyectil
+    DB $3C, $3C   ; Cuerpo principal del proyectil
+    DB $7E, $7E   ; Bordes más intensos
+    DB $7E, $7E   ; Mismo patrón
+    DB $3C, $3C   ; Cuerpo principal
+    DB $18, $18   ; Bordes
+    DB $00, $00   ; Líneas inferiores vacías
 bala_vertical_end::
 
 proyectil_ensanchado::
@@ -151,6 +151,54 @@ proyectil_ensanchado::
     db $00, $08  ; Línea 8: Fino en la parte inferior
 proyectil_ensanchado_end::
 
+
+; Tile 1 - Inicio de explosión (pequeño)
+explosion_tile1::
+    DB $00, $00   ; Vacío
+    DB $10, $10   ; Primer punto central
+    DB $28, $28   ; Expansión inicial
+    DB $44, $44   ; Más fragmentos
+    DB $44, $44   
+    DB $28, $28   
+    DB $10, $10   
+    DB $00, $00  
+explosion_tile1_end: 
+
+; Tile 2 - Explosión media
+explosion_tile2::
+    DB $00, $00   ; Bordes externos
+    DB $3C, $3C   ; Expansión más amplia
+    DB $7E, $7E   ; Fragmentos dispersos
+    DB $DB, $DB   ; Formas irregulares
+    DB $DB, $DB   
+    DB $7E, $7E   
+    DB $3C, $3C   
+    DB $00, $00   
+explosion_tile2_end::
+
+; Tile 3 - Explosión máxima
+explosion_tile3::
+    DB $7E, $7E   ; Explosión completa
+    DB $FF, $FF   ; Máxima intensidad
+    DB $FF, $FF   ; Fragmentos por todos lados
+    DB $FF, $FF   
+    DB $FF, $FF   
+    DB $FF, $FF   
+    DB $7E, $7E   
+    DB $00, $00   
+explosion_tile3_end::
+
+; Tile 4 - Final de explosión
+explosion_tile4::
+    DB $00, $00   
+    DB $3C, $3C   ; Fragmentos dispersándose
+    DB $7E, $7E   
+    DB $DB, $DB   
+    DB $DB, $DB   
+    DB $7E, $7E   
+    DB $3C, $3C   
+    DB $00, $00
+explosion_tile4_end::
 
 
 

@@ -7,11 +7,11 @@ DEF HUD_TILE_START EQU $80 ; Starting tile number for our HUD tiles
 SECTION "HUD Variables", WRAM0
 DEF FIRST_FREE_OAM_SLOT EQU 12 * 4  ; Each sprite uses 4 bytes, empezamos en el slot 12
 
-wScore: ds 2          ; 2 bytes for score (0-9999)
+wScore: ds 1          ; 1 bytes for score (0-100)
 wLives: db            ; 1 byte for lives
 wScoreChanged: db     ; Flag to indicate if score needs updating
 wLivesChanged: db     ; Flag to indicate if lives need updating
-wScoreBuffer: ds 4    ; Buffer to hold the score digits for display
+wScoreBuffer: ds 3    ; Buffer to hold the score digits for display
 wLivesBuffer: ds 3    ; Buffer to hold the lives display data
 
 SECTION "HUD Tiles", ROM0
@@ -155,7 +155,7 @@ InitHUD::
     ld a, NUMBER_START
     ld [hl+], a
     ld [hl+], a
-    ld [hl+], a
+    ld [hl], a
     
     ; Draw the initial hearts
     ld hl, $9A01          ; Position for first heart
@@ -167,7 +167,6 @@ InitHUD::
     ; Initialize variables
     xor a
     ld [wScore], a
-    ld [wScore + 1], a
     ld a, 3
     ld [wLives], a
     ld a, 1
@@ -211,17 +210,18 @@ UpdateHUDGraphics::
     ; Update score display if changed
     ld a, [wScoreChanged]
     and a
-    jr z, .updateLives      ; Si wScoreChanged = 0, actualiza las vidas
+    jr z, .updateLives      ; Si wScoreChanged = 0, no ha cambiado la puntuación y se actualizan las vidas
     
     ; Display score digits at $9A13 (after "PUNTOS : ")
-    ld hl, $9A13          ; New position for score digits (8 tiles after $9A0B)
-    ld de, wScoreBuffer
-    ld b, 4                ; 4 digits
+    ld de, $9A11          ; New position for score digits (8 tiles after $9A0A)
+    ld hl, wScoreBuffer
+    ld b, 3                ; 3 digits
 .scoreLoop:
-    ld a, [de]
-    add HUD_TILE_START     ; Adjust tile number
-    ld [hl+], a
+    ld a, 80            ; TIle 0
+    add a, [hl]
+    ld [de], a
     inc de
+    inc hl
     dec b
     jr nz, .scoreLoop
     

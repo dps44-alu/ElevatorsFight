@@ -36,18 +36,16 @@ check_bullet_player_collisions::
         
         ; Compare X positions
         sub d             ; Bullet X - Enemy X
-        add a, 8          ; Add sprite width
         cp 16             ; Check if within range
         jr nc, .next_bullet
         
         ld hl, wBulletPosY
-        ld b, 0
         add hl, bc
         ld a, [hl]        ; A = Bullet Y
         
         ; Compare Y positions
         sub e             ; Bullet Y - Enemy Y
-        add a, 8          ; Add sprite height
+        sub 12              ; Ajustar
         cp 16             ; Check if within range
         jr nc, .next_bullet
         

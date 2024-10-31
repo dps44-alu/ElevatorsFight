@@ -13,15 +13,15 @@ inicializarNave::
     ; Inicializar la posición de la nave en coordenadas específicas
     ld a, 80
     ld [posicionNaveX], a
-    ld a, 120
+    ld a, 115
     ld [posicionNaveY], a
     ld a, 1
     ld [naveStatus], a
 
     ; Copiar tiles a VRAM (esto debe hacerse durante VBLANK o con la pantalla apagada)
-    ld de, nave
+    ld de, nave6
     ld hl, $8000
-    ld bc, naveend - nave
+    ld bc, nave6end - nave6
     call mem_copy
     ret
 
@@ -33,13 +33,13 @@ updateNave::
 
 ; Maneja la entrada del jugador y actualiza las posiciones
 updateNave_HandleInput:
-    ld a, [wCurKeys]
-    and PADF_UP
-    call nz, MoveUp
+    ;ld a, [wCurKeys]
+    ;and PADF_UP
+    ;call nz, MoveUp
     
-    ld a, [wCurKeys]
-    and PADF_DOWN
-    call nz, MoveDown
+    ;ld a, [wCurKeys]
+    ;and PADF_DOWN
+    ;call nz, MoveDown
     
     ld a, [wCurKeys]
     and PADF_LEFT
