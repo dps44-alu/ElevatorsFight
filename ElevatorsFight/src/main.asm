@@ -415,6 +415,7 @@ game_loop:
     call move_enemies
 	call enemies_shoots
     call check_bullet_enemy_collisions
+	call check_bullet_player_collisions
     call UpdateHUDLogic
     ; Wait for VBlank only before updating sprites
     call wait_vblank_start

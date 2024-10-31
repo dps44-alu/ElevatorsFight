@@ -1,8 +1,8 @@
 INCLUDE "objects/constants.asm"
-SECTION "Collision Variables", WRAM0
+SECTION "Collision Enemies Variables", WRAM0
 wCollisionFlag: DS 1
 
-SECTION "Collision Code", ROM0
+SECTION "Collision Enemies Code", ROM0
 
 ; Check for collisions between bullets and enemies
 ; Modifies all registers

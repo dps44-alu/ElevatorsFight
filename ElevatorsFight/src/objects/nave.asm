@@ -2,8 +2,8 @@ include "src/hardware.inc"
 
 SECTION "VariablesNave", WRAM0
 ; Definir variables para almacenar las posiciones X e Y de la nave
-posicionNaveX: ds 1 ; Variable de 1 byte para la posición X
-posicionNaveY: ds 1 ; Variable de 1 byte para la posición Y
+posicionNaveX: DS 1 ; Variable de 1 byte para la posición X
+posicionNaveY: DS 1 ; Variable de 1 byte para la posición Y
 
 SECTION "Player", ROM0
 

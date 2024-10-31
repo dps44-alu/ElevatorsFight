@@ -211,7 +211,7 @@ UpdateHUDGraphics::
     ; Update score display if changed
     ld a, [wScoreChanged]
     and a
-    jr z, .updateLives
+    jr z, .updateLives      ; Si wScoreChanged = 0, actualiza las vidas
     
     ; Display score digits at $9A13 (after "PUNTOS : ")
     ld hl, $9A13          ; New position for score digits (8 tiles after $9A0B)
@@ -231,7 +231,7 @@ UpdateHUDGraphics::
 .updateLives:
     ld a, [wLivesChanged]
     and a
-    ret z
+    ret z                   ; Si wLivesChanged = 1, necesitan cambio
     
     ; Display lives at specific address $9A01
     ld hl, $9A01          
@@ -282,4 +282,31 @@ NumberToDigits:
     
     pop hl
     pop bc
+    ret
+
+
+lose_a_life:
+    ; Decrementar el número de vidas
+    ld a, [wLives]
+    dec a
+    ld [wLives], a    ; Guardar el nuevo valor
+    
+    ; Encontrar la posición correcta del último corazón
+    ld a, [wLives]    ; Cargar el nuevo número de vidas
+    ld b, a           ; Guardarlo en B para comparación
+    
+    ; Calcular la posición en VRAM para el corazón a borrar
+    ld hl, $9A01      ; Posición base de los corazones en VRAM
+    ld a, b           ; Recuperar el número de vidas
+    add l             ; Añadir al offset base
+    ld l, a           ; HL ahora apunta al corazón que queremos borrar
+    
+    ; Borrar el corazón reemplazándolo con un espacio
+    ld a, EMPTY_TILE
+    ld [hl], a
+    
+    ; Marcar que el HUD necesita actualizarse
+    ld a, 1
+    ld [wLivesChanged], a
+    
     ret
