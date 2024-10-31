@@ -22,17 +22,7 @@
 
  SECTION "Tiles", ROM0
 
-; Start of tile array.
-ball::
-    db $18, $3C  ; Línea 1: 00011000 (una fila con una parte más ancha en el centro)
-    db $7E, $FF  ; Línea 2: 01111110 (expansión máxima de la bola)
-    db $FF, $FF  ; Línea 3: completamente llena
-    db $FF, $FF  ; Línea 4: completamente llena
-    db $FF, $FF  ; Línea 5: completamente llena
-    db $FF, $7E  ; Línea 6: vuelta a la expansión máxima
-    db $3C, $18  ; Línea 7: se va cerrando hacia el centro
-    db $00, $00  ; Línea 8: espacio vacío, fondo
-ballend::
+
 
 
 nave::

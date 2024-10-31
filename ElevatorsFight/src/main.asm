@@ -61,168 +61,9 @@ clear_oam:
 	ret
 
 
-; Añade el momentum de la bola a su posicion en la OAM
-; ball_new_position:
-;     ld a, [wBallMomentumX]
-;     ld b, a
-;     ld a, [_OAMRAM + 5]			; +5 -> Ubicación de la posición X en la OAM
-;     add a, b					; Momentum en X + Posición actual en X
-;     ld [_OAMRAM + 5], a			; Nueva posición en X
-
-;     ld a, [wBallMomentumY]
-;     ld b, a
-;     ld a, [_OAMRAM + 4]			; +4 -> Ubicación de la posición Y en la OAM
-;     add a, b					; Momentum en Y + Posición actual en Y
-;     ld [_OAMRAM + 4], a			; Nueva posición en Y
-
-; 	ret
 
 
-; Convierte una posición de un pixel en la dirección de un tilemap
-; HL = $9800 + X + Y * 32
-; B: X
-; C: Y
-; HL: Dirección del tile
-get_tile_by_pixel:
-	; Primero hay que dividir entre 8 para convertir la posición de un pixel en la posición de un tile
-	; (Porque cada tile ocupa 8 pixeles en el eje vertical)
-	; Después hay que multiplicar la posición Y por 32 (Ancho de la pantalla en tiles)
-	; Como estas dos operaciones se cancelan, sólo hay que enmascarar el valor de Y
-    ld a, c
-    and %11111000		; Enmascara los 3 bits menos significativos, pone a 0 estos bits
-    ld l, a				; Carga A en la parte baja de HL
-    ld h, 0				; Pone a 0 la parte alta de HL
 
-	; Ahora tenemos la posición multiplicada por 8 en HL
-    add hl, hl 			; Posición * 16
-    add hl, hl 			; Posición * 32
-
-	; Convierte la posición X en offset
-    ld a, b
-    srl a 				; a / 2
-    srl a 				; a / 4
-    srl a 				; a / 8
-
-    ; Añade los dos offsets juntos
-    add a, l
-    ld l, a
-    adc a, h
-    sub a, l
-    ld h, a
-
-	; Añade el offset a la dirección base del tilemap
-    ld bc, $9800
-    add hl, bc
-    ret
-
-
-; A: ID del tile
-; Tiles considerados paredes, si la bola está en estos rebota
-; is_wall_tile:
-;     cp a, $00
-;     ret z
-;     cp a, $01
-;     ret z
-;     cp a, $02
-;     ret z
-;     cp a, $04
-;     ret z
-;     cp a, $05
-;     ret z
-;     cp a, $06
-;     ret z
-;     cp a, $07
-;     ret
-
-
-; ball_bounce:
-; 	.bounce_on_top
-; 		; Los sprites en OAM no coinciden directamente con la posición en pantalla
-; 		; Hay un offset de 16 unidades en Y, y de 8 unidades en X -> (8, 16) en OAM es (0, 0) en la pantalla
-; 		ld a, [_OAMRAM + 4]			; _OAMRAM + 4 -> Posición Y de la bola
-; 		sub a, 16 + 1				; +1 -> Para prever un posible choque en la parte superior del tile
-; 		ld c, a
-; 		ld a, [_OAMRAM + 5]			; _OAMRAM + 5 -> Posición X de la bola
-; 		sub a, 8
-; 		ld b, a
-; 		call get_tile_by_pixel 		; Devuelve la dirección del tile en HL
-; 		ld a, [hl]
-; 		call is_wall_tile			; Se verifica si el tile es una pared
-; 		jp nz, .bounce_on_right		; Si no se encuentra un tile de pared, se salta a la siguiente subrutina
-; 		ld a, 1
-; 		ld [wBallMomentumY], a		; Si se encuentra un tile de pared, invierte la dirección vertical
-
-; 	.bounce_on_right
-; 		ld a, [_OAMRAM + 4]
-; 		sub a, 16
-; 		ld c, a
-; 		ld a, [_OAMRAM + 5]
-; 		sub a, 8 - 1				; -1 -> Para prever un posible choque en la parte superior del tile
-; 		ld b, a
-; 		call get_tile_by_pixel
-; 		ld a, [hl]
-; 		call is_wall_tile
-; 		jp nz, .bounce_on_left
-; 		ld a, -1
-; 		ld [wBallMomentumX], a		; Si se encuentra un tile de pared, invierte la dirección horizontal
-
-; 	.bounce_on_left:
-; 		ld a, [_OAMRAM + 4]
-; 		sub a, 16
-; 		ld c, a
-; 		ld a, [_OAMRAM + 5]
-; 		sub a, 8 + 1				; +1 -> Para prever un posible choque en la parte superior del tile
-; 		ld b, a
-; 		call get_tile_by_pixel
-; 		ld a, [hl]
-; 		call is_wall_tile
-; 		jp nz, .bounce_on_bottom
-; 		ld a, 1
-; 		ld [wBallMomentumX], a		; Si se encuentra un tile de pared, invierte la dirección vertical
-
-; 	.bounce_on_bottom:
-; 		ld a, [_OAMRAM + 4]
-; 		sub a, 16 - 1				; -1 -> Para prever un posible choque en la parte superior del tile
-; 		ld c, a
-; 		ld a, [_OAMRAM + 5]
-; 		sub a, 8
-; 		ld b, a
-; 		call get_tile_by_pixel
-; 		ld a, [hl]
-; 		call is_wall_tile
-; 		jp nz, .bounce_done
-; 		ld a, -1
-; 		ld [wBallMomentumY], a		; Si se encuentra un tile de pared, invierte la dirección vertical
-
-; 	.bounce_done
-; 	ret
-
-
-; spaceship_bounce:
-; 	; Primero comprueba si la bola está lo suficientemente abajo como para rebotar con la nave
-;     ld a, [_OAMRAM]					; Posición Y de la nave
-;     ld b, a
-;     ld a, [_OAMRAM + 4]				; Posición Y de la bola
-; 	;add 6							; Para que rebote en cuanto toque y no con los sprites superpuestos
-;     cp b
-;     jp nz, .spaceship_bounce_done	; Si la nave no está en la misma posición Y que la nave, no puede rebotar
-
-; 	; Ahora se compara la posición X de los objetos para comprobar si se están tocando
-;     ld a, [_OAMRAM + 5] 			; Posición X de la bola
-;     ld b, a
-;     ld a, [_OAMRAM + 1] 			; Posición X de la nave
-;     sub 8							; Ajuste por el borde de la nave
-;     cp b
-;     jp nc, .spaceship_bounce_done	; Si la posición ajustada es mayor o igual, no hay colisión
-;     add a, 8 + 16 					; Deshacer el ajuste de 8 y sumar el ancho de la nave (16)
-;     cp b
-;     jp c, .spaceship_bounce_done	; Si la bola está más allá del borde de la nave, no hay colisión
-
-;     ld a, -1
-;     ld [wBallMomentumY], a			; Invierte la dirección vertical de la bola
-
-; 	.spaceship_bounce_done
-; 	ret
 
 
 my_ret:
@@ -273,36 +114,39 @@ update_keys:
 
 
 move:
-	; Comprueba del botón izquierdo
-	.check_left
-		ld a, [wCurKeys]
-		and PADF_LEFT			; PADF_LEFT = $20 = %00100000 -> Bit correspondiente al botón izquierdo
-		jp z, .check_right		; Si el botón no está presionado, salta a check_right
-
-	; .left
-	; 	; Mueve la nave un pixel a la izquierda
-	; 	ld a, [_OAMRAM + 1]  	; Se accede a la posición X de la nave, OAM -> 0:Y, 1:X, 2:INDICETILE, 3:ATRIBUTOS
-	; 	dec a					; Se mueve 1 pixel a la izquierda
-	; 	cp 15					; 15 = $0F = %00001111 -> Borde izquierda
-	; 	jp z, main				; Si es 0, está en el borde y no se mueve
-	; 	ld [_OAMRAM + 1], a		; Si no lo está, actualiza el valor de X de la nave
-	; 	jp game_loop
-
-	; Comprueba del botón derecho
-	.check_right
-		ld a, [wCurKeys]
-		and a, PADF_RIGHT		; PADF_RIGHT = $10 = %00010000 -> Bit corresponidente al botón derecho
-		jp z, game_loop				; Si el botón no está presionado, salta a main
-
-	; .right
-	; 	; Mueve la nave un pixel a la derecha
-	; 	ld a, [_OAMRAM + 1]		; Se accede a la posición X de la nave
-	; 	inc a					; Se mueve 1 pixel a la derecha
-	; 	cp 105					; 105 = $69 = %01101001 -> Borde derecha
-	; 	jp z, main				; Si es 0, está en el borde y no se mueve
-	; 	ld [_OAMRAM + 1], a		; Si no lo está, actualiza el valor de X de la nave
-	; 	jp game_loop
-
+    ; First store current position in case we need to restore it
+    ld a, [_OAMRAM + 1]    ; Get current X position
+    ld b, a                ; Store it in b for safekeeping
+    
+    ; Check left button
+    .check_left
+        ld a, [wCurKeys]
+        and PADF_LEFT          ; Check if left button is pressed
+        jr z, .check_right     ; If not pressed, check right
+        
+        ; Move left
+        ld a, b               ; Get stored X position
+        dec a                 ; Move left one pixel
+        cp 15                ; Check left boundary
+        jr z, .done          ; If at boundary, don't move
+        ld [_OAMRAM + 1], a  ; Update position
+        jr .done
+        
+    ; Check right button
+    .check_right
+        ld a, [wCurKeys]
+        and PADF_RIGHT         ; Check if right button is pressed
+        jr z, .done           ; If not pressed, we're done
+        
+        ; Move right
+        ld a, b               ; Get stored X position
+        inc a                 ; Move right one pixel
+        cp 105               ; Check right boundary
+        jr z, .done          ; If at boundary, don't move
+        ld [_OAMRAM + 1], a  ; Update position
+        
+    .done:
+        ret                   ; Return instead of jumping to game_loop
 
 main:
     call switch_screen_off
@@ -319,77 +163,26 @@ main:
 	ld bc, mapafondoend - mapafondo
 	call mem_copy
 
-	; ; Copia los tiles de la nave
-	; ld de, nave
-	; ld hl, $8000
-	; ld bc, naveend - nave
-	; call mem_copy
+	
 	
 	call inicializarNave
 
 	call initializeBullet
 
-	call initialize_enemies
+	call initialize_level_system ;bien
+	call initialize_enemies	;bien
 
 
 	call InitHUD
 
-	; ; Copia los tiles de la bola
-    ; ld de, ball
-    ; ld hl, $8010
-    ; ld bc, ballend - ball
-    ; call mem_copy
-
-	;COPIAMOS LA NAVE1
-	; ld de,nave1
-	; ld hl,$8010
-	; ld bc, nave1end - nave1
-	; call mem_copy
-
+	
 	call clear_oam
 
-	call copy_enemies_to_oam
 
 
 
 
-	; ; Inicializa el sprite de la nave en la OAM
-	; ;ESTE ES NUESTRO JUGADOR
-	; ld hl, _OAMRAM
-	; ld a, 128 + 16
-	; ld [hl+], a			; Posición en el eje Y -> 144
-	; ld a, 16 + 8
-	; ld [hl+], a			; Posición en el eje X -> 24
-	; xor a
-	; ld [hl+], a			; Primer tile en la memoria de tiles
-	; ld [hl+], a			; Sprite sin propiedades especiales
 	
-	;call updateNave NOOO
-
-	; ; Inicializa el sprite de la bola en la OAM
-	; ld a, 100 + 16
-    ; ld [hl+], a			; Posición en el eje Y -> 116
-    ; ld a, 32 + 8
-    ; ld [hl+], a			; Posición en el eje X -> 40
-    ; ld a, 1
-    ; ld [hl+], a			; Primer tile de la bola
-    ; ld a, 0
-    ; ld [hl+], a			; Sprite sin propiedades especiales
-
-    ; ld a, 1
-    ; ld [wBallMomentumX], a	; La bola comienza moviéndose a la derecha
-    ; ld a, -1
-    ; ld [wBallMomentumY], a	; Y hacia arriba
-
-	;NAVE1
-	; ld a, 50 + 16
-    ; ld [hl+], a			; Posición en el eje Y -> 116
-    ; ld a, 32 + 8
-    ; ld [hl+], a			; Posición en el eje X -> 40
-    ; ld a, 1			;AQUI VA EL NUMERO DE CELDA DE LA VRAM
-    ; ld [hl+], a			; Primer tile de la bola
-    ; ld a, 0
-    ; ld [hl+], a			; Sprite sin propiedades especiales
 
 	call setup_screen
 
@@ -412,37 +205,31 @@ game_loop:
     call update_keys
     call updateNave
     call UpdateBulletLogic
-    call move_enemies
+    call move_enemies	;bien
 	call enemies_shoots
     call check_bullet_enemy_collisions
 	call check_bullet_player_collisions
+	call check_level_complete
+
+	 ; Check level completion
+    call check_level_complete
+    ld a, [wLevelComplete]
+    and a
+    call nz, advance_level       ; If level complete, advance to next level
+    
     call UpdateHUDLogic
     ; Wait for VBlank only before updating sprites
     call wait_vblank_start
 
 
-	;The HUD update routines were likely modifying registers (AF, BC, DE, HL) that contained important values
-	;for sprite updates
-	;Without preserving these registers, the sprite routines would receive incorrect values
-	;By pushing registers before HUD updates and popping them after, we ensure sprite-related data remains intact
-	;digamos que el hud modifica estos registros y luego causa problemas
-	; asi que los guardamos para volver a usarlos luego de cargar el hud, si no no saldria
-	push af
-    push bc
-    push de
-    push hl
-	call UpdateHUDGraphics
-
- ; Restore registers
-    pop hl
-    pop de
-    pop bc
-    pop af
-    
-    ; Now update all sprites
-    call copy_enemies_to_oam
+	call copy_enemies_to_oam	;no cambiar orden a estas funciones
     call UpdateBulletSprites
     call UpdatePlayer_UpdateSprite
+    
+	
+	call UpdateHUDGraphics
+
+ 
     
     jp game_loop
 

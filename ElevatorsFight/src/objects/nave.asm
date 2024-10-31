@@ -2,8 +2,9 @@ include "src/hardware.inc"
 
 SECTION "VariablesNave", WRAM0
 ; Definir variables para almacenar las posiciones X e Y de la nave
-posicionNaveX: DS 1 ; Variable de 1 byte para la posición X
-posicionNaveY: DS 1 ; Variable de 1 byte para la posición Y
+posicionNaveX:  DS 1 ; Variable de 1 byte para la posición X
+posicionNaveY:  DS 1 ; Variable de 1 byte para la posición Y
+naveStatus:     DS 1 ; 0 = dead, 1 = alive
 
 SECTION "Player", ROM0
 
@@ -14,6 +15,8 @@ inicializarNave::
     ld [posicionNaveX], a
     ld a, 120
     ld [posicionNaveY], a
+    ld a, 1
+    ld [naveStatus], a
 
     ; Copiar tiles a VRAM (esto debe hacerse durante VBLANK o con la pantalla apagada)
     ld de, nave

@@ -4,20 +4,34 @@ SECTION "Enemy Variables", WRAM0
 wEnemyArray:        DS MAX_ENEMIES * ENEMY_STRUCT_SIZE  ; Array to store enemy data
 wCurrentEnemies:    DS 1                                ; Current number of active enemies
 wEnemyTimer:        DS 1                                ; Shared movement timer
-wEnemyDelayShoot:   DS MAX_ENEMIES                      ; Array de delay entre disparos para cada enemigo         
+wEnemyDelayShoot:   DS MAX_ENEMIES                      ; Array de delay entre disparos para cada enemigo    
 
 SECTION "Enemy Code", ROM0
 
 ; Initialize all enemies
 initialize_enemies::
-    ; Reset enemy counter
-    ld a, TOTAL_ENEMIES_LVL1    ;mirar la variable de max enemies
+    ; Reset enemy counter based on current level
+    ld a, [wCurrentLevel]    ; wCurrentLevel is defined in levels.asm
+    cp 1
+    jr nz, .check_level2
+    ld a, TOTAL_ENEMIES_LVL1
+    jr .set_enemies
+.check_level2:
+    cp 2
+    jr nz, .level3
+    ld a, TOTAL_ENEMIES_LVL2
+    jr .set_enemies
+.level3:
+    ld a, TOTAL_ENEMIES_LVL3
+
+.set_enemies:
     ld [wCurrentEnemies], a
     
+    ; Reset timer
     xor a
     ld [wEnemyTimer], a
 
-    ; Inicializa el array de delayShoot
+    ; Initialize the delayShoot array
     ld hl, wEnemyDelayShoot
     ld a, ENEMY_DELAY_SHOOT
     ld c, MAX_ENEMIES
@@ -27,37 +41,158 @@ initialize_enemies::
         dec c
         jr nz, .delay_shoot_loop
 
-    ; Initialize enemy array
+    ; Clear all enemies first
+    call clear_enemies
+
+    ; Initialize enemy formation based on level
+    ld a, [wCurrentLevel]
+    cp 1
+    jr z, .setup_level1
+    cp 2
+    jr z, .setup_level2
+    jp .setup_level3
+
+.setup_level1:
+    ; Row formation (3 enemies)
     ld hl, wEnemyArray
     ld b, TOTAL_ENEMIES_LVL1
-    ld c, 0           ; Enemy spacing counter
-
-.init_loop:
-    ; Set X position (spaced horizontally)
+    ld c, 0           ; Spacing counter
+.l1_loop:
+    ; X position
     ld a, 40
-    add a, c          ; Add spacing
-    ld [hl+], a       ; Store X
-    
-    ; Set Y position
+    add a, c
+    ld [hl+], a       
+    ; Y position
     ld a, 40
-    ld [hl+], a       ; Store Y
-    
-    ; Set direction (0 = right)
+    ld [hl+], a
+    ; Direction
     xor a
-    ld [hl+], a       ; Store direction
-    
-    ; Set active status (1 = active)
+    ld [hl+], a
+    ; Active status
     ld a, 1
-    ld [hl+], a       ; Store active status
-    
-    ; Increase spacing for next enemy
+    ld [hl+], a
+    ; Spacing
     ld a, 30
     add a, c
     ld c, a
-    
     dec b
-    jr nz, .init_loop
+    jp nz, .l1_loop
+    jp .init_done
 
+.setup_level2:
+    ; V formation (5 enemies)
+    ld hl, wEnemyArray
+    ; First row (3 enemies)
+    ; Enemy 1
+    ld a, 40          ; X
+    ld [hl+], a
+    ld a, 30          ; Y
+    ld [hl+], a
+    xor a             ; Direction
+    ld [hl+], a
+    ld a, 1           ; Active
+    ld [hl+], a
+    ; Enemy 2
+    ld a, 70          ; X
+    ld [hl+], a
+    ld a, 30          ; Y
+    ld [hl+], a
+    xor a             ; Direction
+    ld [hl+], a
+    ld a, 1           ; Active
+    ld [hl+], a
+    ; Enemy 3
+    ld a, 100         ; X
+    ld [hl+], a
+    ld a, 30          ; Y
+    ld [hl+], a
+    xor a             ; Direction
+    ld [hl+], a
+    ld a, 1           ; Active
+    ld [hl+], a
+    ; Second row (2 enemies)
+    ld a, 55          ; X
+    ld [hl+], a
+    ld a, 50          ; Y
+    ld [hl+], a
+    xor a             ; Direction
+    ld [hl+], a
+    ld a, 1           ; Active
+    ld [hl+], a
+    ld a, 85          ; X
+    ld [hl+], a
+    ld a, 50          ; Y
+    ld [hl+], a
+    xor a             ; Direction
+    ld [hl+], a
+    ld a, 1           ; Active
+    ld [hl+], a
+    jp .init_done
+
+.setup_level3:
+    ; Diamond formation (7 enemies)
+    ld hl, wEnemyArray
+    ; Top enemy
+    ld a, 70          ; X
+    ld [hl+], a
+    ld a, 20          ; Y
+    ld [hl+], a
+    xor a             ; Direction
+    ld [hl+], a
+    ld a, 1           ; Active
+    ld [hl+], a
+    ; Middle row (3 enemies)
+    ld a, 40          ; X
+    ld [hl+], a
+    ld a, 40          ; Y
+    ld [hl+], a
+    xor a             ; Direction
+    ld [hl+], a
+    ld a, 1           ; Active
+    ld [hl+], a
+    ld a, 70          ; X
+    ld [hl+], a
+    ld a, 40          ; Y
+    ld [hl+], a
+    xor a             ; Direction
+    ld [hl+], a
+    ld a, 1           ; Active
+    ld [hl+], a
+    ld a, 100         ; X
+    ld [hl+], a
+    ld a, 40          ; Y
+    ld [hl+], a
+    xor a             ; Direction
+    ld [hl+], a
+    ld a, 1           ; Active
+    ld [hl+], a
+    ; Bottom row (3 enemies)
+    ld a, 40          ; X
+    ld [hl+], a
+    ld a, 60          ; Y
+    ld [hl+], a
+    xor a             ; Direction
+    ld [hl+], a
+    ld a, 1           ; Active
+    ld [hl+], a
+    ld a, 70          ; X
+    ld [hl+], a
+    ld a, 60          ; Y
+    ld [hl+], a
+    xor a             ; Direction
+    ld [hl+], a
+    ld a, 1           ; Active
+    ld [hl+], a
+    ld a, 100         ; X
+    ld [hl+], a
+    ld a, 60          ; Y
+    ld [hl+], a
+    xor a             ; Direction
+    ld [hl+], a
+    ld a, 1           ; Active
+    ld [hl+], a
+
+.init_done:
     call copy_enemy_tiles_to_vram
     ret
 
@@ -70,10 +205,11 @@ copy_enemy_tiles_to_vram:
     ret
 
 ; Update OAM for all enemies
+; Update OAM for all enemies
 copy_enemies_to_oam::
     ld hl, wEnemyArray
     ld de, _OAMRAM + 44    ; Starting OAM address for enemies
-    ld b, MAX_ENEMIES
+    ld b, MAX_ENEMIES      ; Use MAX_ENEMIES instead of wCurrentEnemies here
 
 .copy_loop:
     ; Check if enemy is active
@@ -136,7 +272,7 @@ move_enemies::
 
     ; Move each enemy
     ld hl, wEnemyArray
-    ld b, MAX_ENEMIES
+    ld b, MAX_ENEMIES      ; Use MAX_ENEMIES here instead of wCurrentEnemies
 
 .move_loop:
     push bc
@@ -222,8 +358,134 @@ move_enemies::
     jr nz, .move_loop
     ret
 
-; Deactivate enemy at specified index
-; Input: A = enemy index
+; Clear all enemies
+clear_enemies:
+    ld hl, wEnemyArray
+    ld b, MAX_ENEMIES
+.clear_loop:
+    xor a
+    ld [hl+], a        ; Clear X
+    ld [hl+], a        ; Clear Y
+    ld [hl+], a        ; Clear direction
+    ld [hl+], a        ; Clear active status
+    dec b
+    jr nz, .clear_loop
+    ret
+
+; Check for collisions between bullets and enemies
+
+
+; Enemy shooting logic
+enemies_shoots::
+    ld a, [wCurrentEnemies]   ; Use current enemy count
+    ld b, a
+    ld c, 0                   ; Enemy spacing counter
+    ld d, 0                   ; D = 0 para que no afecte a las operacion con DE
+
+    .loop
+        ; Cargar wEnemyDelayShoot
+        ld hl, wEnemyDelayShoot
+
+        ; Ajustar el puntero al enemigo
+        ld a, 0
+        ld e, 0
+        .mini_loop
+            cp c                
+            jr z, .continue1    ; Si A = C -> Continua
+            inc e               ; E++
+            add 4               ; A += 4, porque C se mueve en valores de 4 en 4
+            jr .mini_loop
+
+        .continue1
+            add hl, de
+
+            ; Comprobar si el delay es igual a 0
+            ld a, [hl]
+            cp 0
+
+            ; Si es 0, continuar; si no, restar 1 y saltar al siguiente enemigo
+            jr z, .continue2
+            dec a
+            ld [hl], a
+            jr .next_enemy
+
+        .continue2
+            ld a, ENEMY_DELAY_SHOOT
+            ld [hl], a                  ; Reinicial el delay del disparo
+
+            ld hl, wEnemyArray          ; Array de enemigos -> (X, Y, Direction, Active) -> 0-3, 4-7, 8-11
+            ld e, c                     ; +0, +4, +8
+            add hl, de                  ; enemigo1, enemigo2, enemigo3
+            ld e, 3                     ; 0 + 3 = 3, 4 + 3 = 7, 8 + 3 = 11
+            add hl, de                  ; bit1 = x, bit2 = y, bit3 = direccion, bit4 = activo
+            ld a, [hl]                  ; A = Actividad del enemigo
+            dec hl                      ;/
+            dec hl                      ;|  Se resta 3 para dejarlo apuntando a la primera posición del enemigo -> 0, 4, 8
+            dec hl                      ;\
+            and a                       ; 1 = activo, 0 = inactivo
+            jr z, .next_enemy           ; SI no está activo, se pasa al siguiente
+
+            push de
+
+            ; DE = enemigo en el que me encuentro
+            ld d, h
+            ld e, l
+
+            push hl
+            push bc
+
+            ; Find inactive bullet
+            ld bc, 0                    ; Use C as counter
+            ld hl, wBulletActive        ; HL = Array de actividad de las balas       
+
+        .find_a_free_bullet:
+            ld a, [hl]                  ; A = Actividad de la bala         
+            and a                       ; 1 = activa, 0 = inactivo       
+            jr z, .free_bullet_found    ; Si A == 0 (inactivo), la bala no se está usando      
+            inc hl                      ; HL++ aquí porque así no se pierde el puntero en caso de estar libre 
+            inc c                       ; C++ -> Siguiente bala
+            ld a, c                     ; A = C
+            cp 10                       ; Si A == 10, activa el flag z
+            jr z, .no_free_bullets      ; Si se llega a 10, no hay balas libres
+            jr .find_a_free_bullet      ; Si aún no se han revisado todas, sigue
+
+        .free_bullet_found:
+            ; Activate bullet
+            ld a, 1
+            ld [hl], a                  ; Set as active
+
+            ld hl, wBulletDirection
+            add hl, bc
+            ld a, 1
+            ld [hl], a                  ; 1 = up_to_down (Disparada por el enemigo)
+
+            ; Set bullet position
+            ld hl, wBulletPosX
+            add hl, bc                  ; Point to correct X position
+            ld a, [de]                  ; A = enemyX (x, y, direction, activity)
+            ld [hl], a                  ; wBulletPosX = enemyX
+
+            ld hl, wBulletPosY
+            add hl, bc                  ; Point to correct Y position
+            inc de                      ; Después de enemyX va enemyY
+            ld a, [de]                  ; A = enemyY
+            add 7                       ; La bala tiene que aparecer un poco separada del enemigo
+            ld [hl], a                  ; wBulletPosY = enemyY                
+
+        .no_free_bullets:
+            pop bc
+            pop hl
+            pop de
+
+        .next_enemy
+            ld a, c                     ;/
+            add 4                       ;| C += 4 -> 0, 4, 8
+            ld c, a                     ;\
+            dec b                       ; Total de enemigos -1
+            jr nz, .loop       
+            
+            ret
+
 ; Deactivate enemy at specified index
 ; Input: A = enemy index
 desactivate_enemy::
@@ -261,6 +523,13 @@ desactivate_enemy::
     dec a
     ld [wCurrentEnemies], a
     
+    ; Check if level is complete
+    and a               ; Check if zero enemies remain
+    jr nz, .not_complete
+    ld a, 1
+    ld [wLevelComplete], a
+
+.not_complete:
     pop de
     pop bc
     pop hl
@@ -268,7 +537,7 @@ desactivate_enemy::
 
 ; Multiply BC by A
 ; Returns: HL = BC * A
-multiply:
+multiply::
     ld hl, 0
     and a
     ret z
@@ -276,114 +545,4 @@ multiply:
     add hl, bc
     dec a
     jr nz, .loop
-    ret
-
-
-; Hace que los enemigos disparen
-enemies_shoots:
-    ld b, TOTAL_ENEMIES_LVL1    ; Total = 3
-    ld c, 0                     ; Enemy spacing counter
-    ld d, 0                     ; D = 0 para que no afecte a las operacion con DE
-
-    .loop
-        ; Cargar wEnemyDelayShoot
-        ld hl, wEnemyDelayShoot
-
-        ; Ajustar el puntero al enemigo
-        ld a, 0
-        ld e, 0
-        .mini_loop
-            cp c                
-            jr z, .continue1    ; Si A = C -> Continua
-            inc e               ; E++
-            add 4               ; A += 4, porque C se mueve en valores de 4 en 4
-            jr .mini_loop
-
-        .continue1
-        add hl, de
-
-        ; Comprobar si el delay es igual a 0
-        ld a, [hl]
-        cp 0
-
-        ; Si es 0, continuar; si no, restar 1 y saltar al siguiente enemigo
-        jr z, .continue2
-        dec a
-        ld [hl], a
-        jr .next_enemy
-
-        .continue2
-            ld a, ENEMY_DELAY_SHOOT
-            ld [hl], a                  ; Reinicial el delay del disparo
-
-            ld hl, wEnemyArray  ; Array de enemigos -> (X, Y, Direction, Active) -> 0-3, 4-7, 8-11
-            ld e, c             ; +0, +4, +8
-            add hl, de          ; enemigo1, enemigo2, enemigo3
-            ld e, 3             ; 0 + 3 = 3, 4 + 3 = 7, 8 + 3 = 11
-            add hl, de          ; bit1 = x, bit2 = y, bit3 = direccion, bit4 = activo
-            ld a, [hl]          ; A = Actividad del enemigo
-            dec hl              ;/
-            dec hl              ;|  Se resta 3 para dejarlo apuntando a la primera posición del enemigo -> 0, 4, 8
-            dec hl              ;\
-            and a               ; 1 = activo, 0 = inactivo
-            jr z, .next_enemy   ; SI no está activo, se pasa al siguiente
-
-            push de
-
-            ; DE = enemigo en el que me encuentro
-            ld d, h
-            ld e, l
-
-            push hl
-            push bc
-
-            ; Find inactive bullet
-            ld bc, 0                    ; Use C as counter
-            ld hl, wBulletActive        ; HL = Array de actividad de las balas       
-
-        .find_a_free_bullet:
-            ld a, [hl]                  ; A = Actividad de la bala         
-            and a                       ; 1 = activa, 0 = inactivo       
-            jr z, .free_bullet_found    ; Si A == 0 (inactivo), la bala no se está usando      
-            inc hl                      ; HL++ aquí porque así no se pierde el puntero en caso de estar libre 
-            inc c                       ; C++ -> Siguiente bala
-            ld a, c                     ; A = C
-            cp 10                       ; Si A == 10, activa el flag z
-            ret z                       ; Si se llega a 10, no hay balas libres
-            jr .find_a_free_bullet      ; Si aún no se han revisado todas, sigue
-
-        .free_bullet_found:
-            ; Activate bullet
-            ld a, 1
-            ld [hl], a                  ; Set as active
-
-            ld hl, wBulletDirection
-            add hl, bc
-            ld a, 1
-            ld [hl], a                  ; 1 = up_to_down (Disparada por el enemigo)
-
-            ; Set bullet position
-            ld hl, wBulletPosX
-            add hl, bc                  ; Point to correct X position
-            ld a, [de]                  ; A = enemyX (x, y, direction, activity)
-            ld [hl], a                  ; wBulletPosX = enemyX
-
-            ld hl, wBulletPosY
-            add hl, bc                  ; Point to correct Y position
-            inc de                      ; Después de enemyX va enemyY
-            ld a, [de]                  ; A = enemyY
-            add 7                       ; La bala tiene que aparecer un poco separada del enemigo
-            ld [hl], a                  ; wBulletPosY = enemyY                
-
-        pop bc
-        pop hl
-        pop de
-
-        .next_enemy
-            ld a, c                     ;/
-            add 4                       ;| C += 4 -> 0, 4, 8
-            ld c, a                     ;\
-            dec b                       ; Total de enemigos -1
-            jr nz, .loop       
-    
     ret

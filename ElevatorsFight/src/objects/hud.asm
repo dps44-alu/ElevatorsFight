@@ -48,8 +48,8 @@ hud_tiles:
     db $7E,$7E,$FF,$81,$FF,$81,$7F,$7F
     db $03,$03,$FF,$81,$7E,$7E,$00,$00
     ; Heart tile (for lives)
-    db $66,$66,$FF,$FF,$FF,$FF,$7E,$7E
-    db $3C,$3C,$18,$18,$00,$00,$00,$00
+    db $66,$66,$FF,$FF,$FF,$7E,$7E,$3C
+    db $3C,$18,$18,$00,$00,$00,$00,$00
    ; ; Letter tiles for "SCORE:" (16 bytes each)
     ; S 
     db $7E,$7C,$FF,$FE,$C0,$C0,$7E,$7C  ; Top curve and middle

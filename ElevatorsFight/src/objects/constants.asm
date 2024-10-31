@@ -1,7 +1,7 @@
 INCLUDE "hardware.inc"
 
 ; Enemy Constants
-DEF MAX_ENEMIES          EQU 3    ; Maximum number of enemies on screen
+DEF MAX_ENEMIES          EQU 10   ; Maximum number of enemies on screen
 DEF ENEMY_STRUCT_SIZE    EQU 4     ; Size of each enemy structure (X, Y, direction, active)
 DEF ENEMY_MIN_X         EQU 8      ; Left screen boundary
 DEF ENEMY_MAX_X         EQU 152    ; Right screen boundary
