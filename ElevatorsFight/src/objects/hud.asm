@@ -138,24 +138,24 @@ InitHUD::
     or c
     jr nz, .copyTiles
 
-    ; Write "SCORE:" at $9A0B 
+    ; Write "SCORE:" at $9A0A
     ld hl, $9A0A
-    ld a, LETTER_S
-    ld [hl+], a
-    ld a, LETTER_C
-    ld [hl+], a
-    ld a, LETTER_O
-    ld [hl+], a
-    ld a, LETTER_R
-    ld [hl+], a
-    ld a, LETTER_E
-    ld [hl+], a
-    ld a, LETTER_COLON
-    ld [hl+], a
+    ld a, LETTER_S          
+    ld [hl+], a             ; 9A0A
+    ld a, LETTER_C          
+    ld [hl+], a             ; 9A0B
+    ld a, LETTER_O          
+    ld [hl+], a             ; 9A0C
+    ld a, LETTER_R          
+    ld [hl+], a             ; 9A0D
+    ld a, LETTER_E          
+    ld [hl+], a             ; 9A0E
+    ld a, LETTER_COLON      
+    ld [hl+], a             ; 9A0F
     ld a, NUMBER_START
-    ld [hl+], a
-    ld [hl+], a
-    ld [hl], a
+    ld [hl+], a             ; 9A10
+    ld [hl+], a             ; 9A11
+    ld [hl], a              ; 9A12
     
     ; Draw the initial hearts
     ld hl, $9A01          ; Position for first heart
@@ -169,20 +169,18 @@ InitHUD::
     ld [wScore], a
     ld a, 3
     ld [wLives], a
-    ld a, 1
+    ld a, 0 
     ld [wScoreChanged], a
     ld [wLivesChanged], a
     ret
 UpdateHUDLogic::
-    ; Check if we need to update score
     ld a, [wScoreChanged]
     and a
-    jr z, .checkLives
+    jr z, .checkLives       ; Si no ha cambiado el valor del Score comprueba el de las vidas
     
     ; Convert score to digits
-    ld hl, wScore
-    ld de, wScoreBuffer
-    call NumberToDigits
+    ld hl, wScore               ; HL = wScore
+    call convert_score          ; wScoreBuffer = Tiles de los digitos de Score  
     
 .checkLives:
     ld a, [wLivesChanged]
@@ -212,21 +210,11 @@ UpdateHUDGraphics::
     and a
     jr z, .updateLives      ; Si wScoreChanged = 0, no ha cambiado la puntuación y se actualizan las vidas
     
-    ; Display score digits at $9A13 (after "PUNTOS : ")
-    ld de, $9A11          ; New position for score digits (8 tiles after $9A0A)
-    ld hl, wScoreBuffer
-    ld b, 3                ; 3 digits
-.scoreLoop:
-    ld a, 80            ; TIle 0
-    add a, [hl]
-    ld [de], a
-    inc de
-    inc hl
-    dec b
-    jr nz, .scoreLoop
-    
+    call print_score
+
     xor a
-    ld [wScoreChanged], a
+    ld hl, wScoreChanged
+    ld [hl], a
     
 .updateLives:
     ld a, [wLivesChanged]
@@ -248,39 +236,73 @@ UpdateHUDGraphics::
     ld [wLivesChanged], a
     ret
 
-NumberToDigits:
-    ; Input: HL points to 8-bit number -> wScore
-    ; Output: DE points to buffer to store digits -> wScoreBuffer
-    push bc
-    push hl
-    
-    ld a, [hl]     ; A = wScore
-    ld c, a        ; C = wScore
-    
-    ; Convert to decimal digits
-    ld h, 0        ; Counter for leading zeros
-.divLoop:
+
+; Entrada: HL = Dirección de la variable de 1 byte que contiene el puntaje (0-100)
+; Salida: scoreBuffer = 6 bytes (3 para dígitos, 3 para tiles)
+convert_score:
+    ld a, [hl]          ; Cargar el puntaje en A
+    ld hl, wScoreBuffer  ; Cargar la dirección de la variable scoreBuffer
+
+    ; Dividir el puntaje entre 100 para obtener el dígito de las centenas
+    ld b, a
+    ld a, 100
+    call div8      ; Dividir A/B y almacenar el resultado en A
+    add a, 80      ; Sumar 80 para obtener el tile correspondiente
+    ld [hl+], a     ; Almacenar el tile de las centenas en la cuarta posición
+
+    ; Dividir el puntaje entre 10 para obtener el dígito de las decenas
     ld a, b
-    ld l, 10
-    call Divide    ; Divide by 10
-    add "0" - HUD_TILE_START  ; Convert to tile number (will add HUD_TILE_START later)
-    push af        ; Save digit
-    inc h          ; Increment digit counter
+    ld b, 10
+    call div8      ; Dividir A/B y almacenar el resultado en A
+    add a, 80      ; Sumar 80 para obtener el tile correspondiente
+    ld [hl+], a     ; Almacenar el tile de las decenas en la quinta posición
+
+    ; El dígito de las unidades es el resto de la división entre 10
     ld a, b
-    or c           ; Check if number is zero
-    jr nz, .divLoop
-    
-    ; Store digits in buffer
-.storeLoop:
-    pop af
-    ld [de], a
-    inc de
-    dec h
-    jr nz, .storeLoop
-    
-    pop hl
-    pop bc
+    add a, 80      ; Sumar 80 para obtener el tile correspondiente
+    ld [hl], a     ; Almacenar el tile de las unidades en la sexta posición
+
+    ret            ; Regresar de la función
+
+
+; Entrada: A = Dividendo, B = Divisor
+; Salida: A = Resultado de la división, B = Resto de la división
+div8:
+    xor a          ; Limpiar el acumulador A
+    ld c, 8        ; Inicializar el contador a 8 bits
+div8_loop:
+    rl a          ; Rotar A a la izquierda, el bit menos significativo se copia en el carry
+    rl b          ; Rotar B a la izquierda, el bit menos significativo se copia en el carry
+    jr nc, div8_skip ; Saltar si el carry es 0 (no hay divisor)
+    sub b         ; Restar el divisor al dividendo
+div8_skip:
+    dec c         ; Decrementar el contador
+    jr nz, div8_loop ; Repetir el bucle si el contador no es 0
+    ld b, a       ; Almacenar el resto en B
     ret
+
+
+; Entrada: wScoreBuffer = Variable de 6 bytes (3 dígitos, 3 tiles)
+; Salida: El puntaje se imprime en la pantalla
+print_score:
+    ld hl, wScoreBuffer ; Cargar la dirección de wScoreBuffer
+    
+    ; Imprimir el dígito y tile de las centenas
+    ld a, [hl+]     ; Cargar el dígito de las centenas
+    ld de, $9A10   ; Establecer la posición de impresión para las centenas
+    ld [de], a     ; Escribir el tile en la VRAM
+    
+    ; Imprimir el dígito y tile de las decenas    
+    ld a, [hl+]     ; Cargar el dígito de las decenas
+    inc de          ; DE = $9A11
+    ld [de], a     ; Escribir el tile en la VRAM
+
+    ; Imprimir el dígito y tile de las unidades
+    ld a, [hl]     ; Cargar el dígito de las unidades
+    inc de          ; DE = $9A12
+    ld [de], a     ; Escribir el tile en la VRAM
+    
+    ret            ; Regresar de la función
 
 
 lose_a_life:

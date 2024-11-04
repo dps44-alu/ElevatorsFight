@@ -95,10 +95,7 @@ check_bullet_enemy_collisions::
     ld hl, wScore
     ld a, [hl]        ; Get low byte of score
     add 10            ; Add 10 points
-    ld [hl+], a       ; Store back low byte
-    jr nc, .no_carry  ; If no carry, skip high byte
-    inc [hl]          ; Increment high byte if there was carry
-    .no_carry:
+    ld [hl], a        ; Store new score
     ld a, 1
     ld [wScoreChanged], a  ; Mark score for update
 
