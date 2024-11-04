@@ -182,7 +182,7 @@ UpdateHUDLogic::
     ; Convert score to digits
     ld hl, wScore
     ld de, wScoreBuffer
-    ;call NumberToDigits
+    call NumberToDigits
     
 .checkLives:
     ld a, [wLivesChanged]
@@ -249,15 +249,13 @@ UpdateHUDGraphics::
     ret
 
 NumberToDigits:
-    ; Input: HL points to 16-bit number -> wScore
+    ; Input: HL points to 8-bit number -> wScore
     ; Output: DE points to buffer to store digits -> wScoreBuffer
     push bc
     push hl
     
-    ld a, [hl+]
-    ld c, a
-    ld a, [hl]
-    ld b, a        ; BC now contains the number
+    ld a, [hl]     ; A = wScore
+    ld c, a        ; C = wScore
     
     ; Convert to decimal digits
     ld h, 0        ; Counter for leading zeros
