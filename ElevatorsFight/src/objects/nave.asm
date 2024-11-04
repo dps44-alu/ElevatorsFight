@@ -33,14 +33,6 @@ updateNave::
 
 ; Maneja la entrada del jugador y actualiza las posiciones
 updateNave_HandleInput:
-    ;ld a, [wCurKeys]
-    ;and PADF_UP
-    ;call nz, MoveUp
-    
-    ;ld a, [wCurKeys]
-    ;and PADF_DOWN
-    ;call nz, MoveDown
-    
     ld a, [wCurKeys]
     and PADF_LEFT
     call nz, MoveLeft
@@ -87,22 +79,6 @@ TryShoot:
     jp FireBullet
 
 ; Movement functions; Movement functions with corrected screen boundaries
-MoveUp:
-    ld a, [posicionNaveY]
-    cp 0              ; Upper limit (top of screen)
-    ret z
-    sub 1
-    ld [posicionNaveY], a
-    ret
-
-MoveDown:
-    ld a, [posicionNaveY]
-    cp 128            ; Lower limit (144 - 16 for sprite height)
-    ret z
-    add 1
-    ld [posicionNaveY], a
-    ret
-
 MoveLeft:
     ld a, [posicionNaveX]
     cp 0              ; Left limit (left edge of screen)

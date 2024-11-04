@@ -249,8 +249,8 @@ UpdateHUDGraphics::
     ret
 
 NumberToDigits:
-    ; Input: HL points to 16-bit number
-    ; Output: DE points to buffer to store digits
+    ; Input: HL points to 16-bit number -> wScore
+    ; Output: DE points to buffer to store digits -> wScoreBuffer
     push bc
     push hl
     

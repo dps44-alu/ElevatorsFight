@@ -169,66 +169,47 @@ clear_oam:
 my_ret:
     ret
 
+; Lee el estado de los botones y los guarda en A
+; 1 nibble = 4 bits = 1/2 byte
+; rP1 (P1/JOYP) -> Guarda el estado de los botones de la consola
+; 	-> Bits 0-3: indica el estado de los botones (A, B, Select, Start, Derecha, Izquierda, Arriba, Abajo)
+; 	-> Bits 4,5: indica en grupo de botones que se quiere leer, direcciones (Derecha, Izquierda, Arriba, Abajo) o botones (A, B, Select, Start)
 one_nibble:
-    ldh [rP1], a
-    call my_ret
-    ldh a, [rP1]
-    ldh a, [rP1]
-    ldh a, [rP1]
-    or a, $F0
-    ret
+	ldh [rP1], a 	; rP1 = $FF00 -> Actualiza la matriz de teclas
+	call my_ret 	; Quema 10 ciclos llamando a un ret (Pausa)
+	ldh a, [rP1] 	; Ignorar para que la matriz de teclas se estabilice
+	ldh a, [rP1]
+	ldh a, [rP1] 	; Lee
+	or a, $F0 		; 11110000 -> 7-4 = 1, 3-0 = teclas no presionadas
+	ret
 
 update_keys:
-    ld a, P1F_GET_BTN
-    call one_nibble
-    ld b, a
+	; Escribe la mitad del controllador (Botones A y B)
+	ld a, P1F_GET_BTN	; P1F_GET_BTN = P1F_4 = %00010000 -> Carga los botones
+	call one_nibble
+	ld b, a 			; 11110000 -> 7-4 = 1, 3-0 = botones no presionados
 
-    ld a, P1F_GET_DPAD
-    call one_nibble
-    swap a
-    xor b
-    ld b, a
+	; Escribe la otra mitad (Direcciones)
+	ld a, P1F_GET_DPAD	; P1F_GET_DPAD = P1F_5 = %00100000 -> Carga las direcciones
+	call one_nibble
+	swap a 				; A3-0 = direcciones no presionadas; A7-4 = 1
+	xor b 				; A = botones presionados + direcciones
+	ld b, a 			; B = botones presionados + direcciones
 
-    ld a, P1F_GET_NONE
-    ldh [rP1], a
+	; Carga los controladores
+	ld a, P1F_GET_NONE	; P1F_GET_NONE = OR(P1F_4, P1F_5) = OR(%00010000, %00100000) -> No carga ninguno
+	ldh [rP1], a
 
-    ld a, [wCurKeys]
-    xor b
-    and b
-    ld [wNewKeys], a
-    ld a, b
-    ld [wCurKeys], a
-    ret
+	; Combina con las wCurKeys previas para crear las wNewKeys
+	ld a, [wCurKeys]	; wCurKeys -> Teclas que estaban presionadas anteriormente (Estado actual de los botones)
+	xor b 				; A = teclas que han cambiado de estado
+	and b 				; A = teclas que han cambiado a presionadas
+	ld [wNewKeys], a	; wNewKeys -> Teclas recién presionadas (Estado nuevo de los botones)
+	ld a, b
+	ld [wCurKeys], a	; wCurKeys = estado actualizado de las teclas
 
-move:
-    ld a, [_OAMRAM + 1]
-    ld b, a
-    
-    .check_left
-        ld a, [wCurKeys]
-        and PADF_LEFT
-        jr z, .check_right
-        
-        ld a, b
-        dec a
-        cp 15
-        jr z, .done
-        ld [_OAMRAM + 1], a
-        jr .done
-        
-    .check_right
-        ld a, [wCurKeys]
-        and PADF_RIGHT
-        jr z, .done
-        
-        ld a, b
-        inc a
-        cp 105
-        jr z, .done
-        ld [_OAMRAM + 1], a
-        
-    .done:
-        ret
+	ret
+
 
 main:
     ;; Show intro screen first
