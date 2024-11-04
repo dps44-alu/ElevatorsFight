@@ -182,7 +182,7 @@ UpdateHUDLogic::
     ; Convert score to digits
     ld hl, wScore
     ld de, wScoreBuffer
-    call NumberToDigits
+    ;call NumberToDigits
     
 .checkLives:
     ld a, [wLivesChanged]
