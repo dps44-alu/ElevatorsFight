@@ -267,7 +267,7 @@ game_loop:
     call updateNave
     call UpdateBulletLogic
     call move_enemies
-    ;call enemies_shoots
+    call enemies_shoots
     call check_bullet_enemy_collisions
     call check_bullet_player_collisions
     call check_level_complete

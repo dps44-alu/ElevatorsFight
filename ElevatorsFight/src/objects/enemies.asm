@@ -528,7 +528,7 @@ enemies_shoots::
             add 4                       ;| C += 4 -> 0, 4, 8
             ld c, a                     ;\
             dec b                       ; Total de enemigos -1
-            jr nz, .loop       
+            jp nz, .loop       
             
             ret
 
