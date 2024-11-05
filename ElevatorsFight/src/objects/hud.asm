@@ -177,9 +177,7 @@ UpdateHUDLogic::
     ld a, [wScoreChanged]
     and a
     jr z, .checkLives       ; Si no ha cambiado el valor del Score comprueba el de las vidas
-    
-    ; Convert score to digits
-    ld hl, wScore               ; HL = wScore
+
     call convert_score          ; wScoreBuffer = Tiles de los digitos de Score  
     
 .checkLives:
@@ -240,46 +238,48 @@ UpdateHUDGraphics::
 ; Entrada: HL = Dirección de la variable de 1 byte que contiene el puntaje (0-100)
 ; Salida: scoreBuffer = 6 bytes (3 para dígitos, 3 para tiles)
 convert_score:
-    ld a, [hl]          ; Cargar el puntaje en A
-    ld hl, wScoreBuffer  ; Cargar la dirección de la variable scoreBuffer
-
-    ; Dividir el puntaje entre 100 para obtener el dígito de las centenas
-    ld b, a
-    ld a, 100
-    call div8      ; Dividir A/B y almacenar el resultado en A
-    add a, 80      ; Sumar 80 para obtener el tile correspondiente
-    ld [hl+], a     ; Almacenar el tile de las centenas en la cuarta posición
-
-    ; Dividir el puntaje entre 10 para obtener el dígito de las decenas
-    ld a, b
-    ld b, 10
-    call div8      ; Dividir A/B y almacenar el resultado en A
-    add a, 80      ; Sumar 80 para obtener el tile correspondiente
-    ld [hl+], a     ; Almacenar el tile de las decenas en la quinta posición
-
-    ; El dígito de las unidades es el resto de la división entre 10
-    ld a, b
-    add a, 80      ; Sumar 80 para obtener el tile correspondiente
-    ld [hl], a     ; Almacenar el tile de las unidades en la sexta posición
-
-    ret            ; Regresar de la función
+    ld a, [wScore]            ; Carga el valor de wScore en el acumulador A.
+    
+    ; Calcula las centenas
+    ld b, 100                 ; Coloca 100 en B para dividir.
+    call DivideByB            ; Divide A por 100 (resultado en A, residuo en C).
+    add $80
+    ld [wScoreBuffer], a      ; Almacena el dígito de las centenas en wScoreBuffer.
+    
+    ; Calcula las decenas
+    ld a, c                   ; Cargar el residuo en A.
+    ld b, 10                  ; Coloca 10 en B para dividir.
+    call DivideByB            ; Divide A por 10 (resultado en A, residuo en C).
+    add $80
+    ld [wScoreBuffer + 1], a  ; Almacena el dígito de las decenas en wScoreBuffer + 1.
+    
+    ; Calcula las unidades
+    ld a, c                   ; Cargar el residuo en A.
+    add $80
+    ld [wScoreBuffer + 2], a  ; Almacena el dígito de las unidades en wScoreBuffer + 2.
+    
+    ret                       ; Regresa de la función.
 
 
-; Entrada: A = Dividendo, B = Divisor
-; Salida: A = Resultado de la división, B = Resto de la división
-div8:
-    xor a          ; Limpiar el acumulador A
-    ld c, 8        ; Inicializar el contador a 8 bits
-div8_loop:
-    rl a          ; Rotar A a la izquierda, el bit menos significativo se copia en el carry
-    rl b          ; Rotar B a la izquierda, el bit menos significativo se copia en el carry
-    jr nc, div8_skip ; Saltar si el carry es 0 (no hay divisor)
-    sub b         ; Restar el divisor al dividendo
-div8_skip:
-    dec c         ; Decrementar el contador
-    jr nz, div8_loop ; Repetir el bucle si el contador no es 0
-    ld b, a       ; Almacenar el resto en B
+; Subrutina para dividir A por B y obtener el residuo en C
+; Entrada: A = dividendo, B = divisor
+; Salida:  A = cociente, C = residuo
+DivideByB:
+    xor c                     ; Limpia C (residuo).
+    ld d, 0                   ; D = 0 para acumular el cociente.
+LoopDivide:
+    cp b                      ; Compara A con B.
+    jr c, EndDivide           ; Si A < B, fin de la división.
+    sub b                     ; Resta B de A.
+    inc d                     ; Incrementa el cociente.
+    jr LoopDivide             ; Repite hasta que A < B.
+EndDivide:
+    ld a, d                   ; Coloca el cociente en A.
+    ld c, a                   ; Residuo queda en C.
     ret
+
+
+
 
 
 ; Entrada: wScoreBuffer = Variable de 6 bytes (3 dígitos, 3 tiles)
