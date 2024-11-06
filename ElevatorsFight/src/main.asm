@@ -125,6 +125,7 @@ main:
     call initializeBullet
     call initialize_level_system
     call initialize_enemies
+    
     call InitHUD
     call clear_oam
     call setup_screen
@@ -164,9 +165,15 @@ game_loop:
     
     call wait_vblank_start
 
-    call copy_enemies_to_oam
-    call UpdateBulletSprites
-    call UpdatePlayer_UpdateSprite
+
+    call UpdatePlayer_UpdateSprite  ; Update player sprite first SI PONEMOS ESTO PRIMERA EL JUGADOR NO SE CONGELA
+    call copy_enemies_to_oam       ; Finally update enemies
+
+    call UpdateBulletSprites       ; Then update bullets
+
+    ; call copy_enemies_to_oam
+    ; call UpdateBulletSprites
+    ; call UpdatePlayer_UpdateSprite
     call UpdateHUDGraphics
     
     jp game_loop
