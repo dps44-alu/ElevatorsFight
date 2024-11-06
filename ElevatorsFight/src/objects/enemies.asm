@@ -387,14 +387,61 @@ initialize_enemies::
     ret
 
 ; Copy enemy sprite data to VRAM
+; Copy enemy sprite data to VRAM based on current level
 copy_enemy_tiles_to_vram:
+    ; Get current level
+    ld a, [wCurrentLevel]
+    
+    ; Compare with each level and jump to appropriate ship loading
+    cp 1
+    jr z, .load_ship1
+    cp 2
+    jr z, .load_ship2
+    cp 3
+    jr z, .load_ship3
+    cp 4
+    jr z, .load_ship4
+    cp 5
+    jr z, .load_ship5
+    cp 6
+    jr z, .load_ship6
+    ; Default to ship1 if unknown level
+    jr .load_ship1
+
+.load_ship1:
+    ld de, nave1
+    ld bc, nave1end - nave1
+    jr .do_copy
+
+.load_ship2:
     ld de, nave2
-    ld hl, $8020
     ld bc, nave2end - nave2
+    jr .do_copy
+
+.load_ship3:
+    ld de, nave3
+    ld bc, nave3end - nave3
+    jr .do_copy
+
+.load_ship4:
+    ld de, nave4
+    ld bc, nave4end - nave4
+    jr .do_copy
+
+.load_ship5:
+    ld de, nave5
+    ld bc, nave5end - nave5
+    jr .do_copy
+
+.load_ship6:
+    ld de, nave6
+    ld bc, nave6end - nave6
+    ; Fall through to .do_copy
+
+.do_copy:
+    ld hl, $8020     ; Destination in VRAM (tile 2)
     call mem_copy
     ret
-
-; Update OAM for all enemies
 ; Update OAM for all enemies
 copy_enemies_to_oam::
     ld hl, wEnemyArray

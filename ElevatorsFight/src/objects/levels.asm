@@ -1,7 +1,7 @@
 include "hardware.inc"
 include "objects/constants.asm"
 
-DEF MAX_LEVEL EQU 1    ; Total number of levels
+DEF MAX_LEVEL EQU 6    ; Total number of levels
 
 SECTION "Level Variables", WRAM0
 wCurrentLevel:    DS 1    ; Current level (1-3)
