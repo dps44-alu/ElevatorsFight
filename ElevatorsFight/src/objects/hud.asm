@@ -1,11 +1,10 @@
 INCLUDE "hardware.inc"    ; Include hardware constants
 
 ; Constants for HUD tiles
-
 DEF HUD_TILE_START EQU $80 ; Starting tile number for our HUD tiles
 
 SECTION "HUD Variables", WRAM0
-DEF FIRST_FREE_OAM_SLOT EQU 12 * 4  ; Each sprite uses 4 bytes, empezamos en el slot 12
+DEF FIRST_FREE_OAM_SLOT EQU 12 * 4  ; Each sprite uses 4 bytes
 
 wScore: ds 1          ; 1 bytes for score (0-100)
 wLives: db            ; 1 byte for lives
@@ -17,6 +16,7 @@ wLivesBuffer: ds 3    ; Buffer to hold the lives display data
 SECTION "HUD Tiles", ROM0
 hud_tiles:
     ; Numbers 0-9 tiles (16 bytes each)
+    ; [Your existing number tiles 0-9...]
     ; 0
     db $7E,$7E,$FF,$81,$FF,$81,$FF,$81
     db $FF,$81,$FF,$81,$FF,$81,$7E,$7E
@@ -50,7 +50,7 @@ hud_tiles:
     ; Heart tile (for lives)
     db $66,$66,$FF,$FF,$FF,$7E,$7E,$3C
     db $3C,$18,$18,$00,$00,$00,$00,$00
-   ; ; Letter tiles for "SCORE:" (16 bytes each)
+    ; Letter tiles for "SCORE:" (16 bytes each)
     ; S 
     db $7E,$7C,$FF,$FE,$C0,$C0,$7E,$7C  ; Top curve and middle
     db $03,$02,$FF,$FE,$7E,$7C,$00,$00  ; Bottom curve
@@ -77,7 +77,6 @@ hud_tiles:
     db $00,$00,$00,$00,$00,$00,$00,$00
     db $00,$00,$00,$00,$00,$00,$00,$00
 hud_tiles_end:
- 
 
 ; Constants for letter tiles
 DEF EMPTY_TILE     EQU $00    ; Empty space tile
@@ -90,38 +89,6 @@ DEF LETTER_R      EQU HUD_TILE_START + 14
 DEF LETTER_E      EQU HUD_TILE_START + 15
 DEF LETTER_COLON  EQU HUD_TILE_START + 16
 DEF LETTER_SPACE  EQU HUD_TILE_START + 17
-SECTION "Math Functions", ROM0
-; Divide function
-; Input: BC = number to divide, L = divisor
-; Output: BC = result, A = remainder
-Divide::
-    xor a           ; Clear a for remainder
-    ld h, 8         ; 8 bits to process for each byte
-.loop16:
-    ; First process the high byte (B)
-    sla c           ; Shift low byte left
-    rla             ; Shift high byte left through carry
-    cp l            ; Compare with divisor
-    jr c, .skip     ; If remainder < divisor, skip subtraction
-    sub l           ; Subtract divisor
-    inc c           ; Set result bit
-.skip:
-    dec h
-    jr nz, .loop16
-    
-    ; Now process the low byte (C)
-    ld h, 8         ; 8 more bits to process
-.loop8:
-    sla c           ; Shift low byte left
-    rla             ; Shift remainder left through carry
-    cp l            ; Compare with divisor
-    jr c, .skip2    ; If remainder < divisor, skip subtraction
-    sub l           ; Subtract divisor
-    inc c           ; Set result bit
-.skip2:
-    dec h
-    jr nz, .loop8
-    ret
 
 SECTION "HUD Functions", ROM0
 InitHUD::
@@ -169,16 +136,17 @@ InitHUD::
     ld [wScore], a
     ld a, 3
     ld [wLives], a
-    ld a, 0 
+    xor a
     ld [wScoreChanged], a
     ld [wLivesChanged], a
     ret
+
 UpdateHUDLogic::
     ld a, [wScoreChanged]
     and a
-    jr z, .checkLives       ; Si no ha cambiado el valor del Score comprueba el de las vidas
+    jr z, .checkLives       ; If score hasn't changed, check lives
 
-    call convert_score          ; wScoreBuffer = Tiles de los digitos de Score  
+    call convert_score      ; Convert score to digits
     
 .checkLives:
     ld a, [wLivesChanged]
@@ -193,7 +161,7 @@ UpdateHUDLogic::
     ld a, b
     and a
     jr z, .emptyHearts
-    ld a, HEART_TILE      ; Use the defined heart tile constant instead of direct value
+    ld a, HEART_TILE
     ld [hl+], a
     dec b
     jr .livesLoop
@@ -206,10 +174,10 @@ UpdateHUDGraphics::
     ; Update score display if changed
     ld a, [wScoreChanged]
     and a
-    jr z, .updateLives      ; Si wScoreChanged = 0, no ha cambiado la puntuación y se actualizan las vidas
+    jr z, .updateLives
     
     call print_score
-
+    
     xor a
     ld hl, wScoreChanged
     ld [hl], a
@@ -217,7 +185,7 @@ UpdateHUDGraphics::
 .updateLives:
     ld a, [wLivesChanged]
     and a
-    ret z                   ; Si wLivesChanged = 1, necesitan cambio
+    ret z
     
     ; Display lives at specific address $9A01
     ld hl, $9A01          
@@ -238,48 +206,50 @@ UpdateHUDGraphics::
 ; Entrada: HL = Dirección de la variable de 1 byte que contiene el puntaje (0-100)
 ; Salida: scoreBuffer = 6 bytes (3 para dígitos, 3 para tiles)
 convert_score:
-    ld a, [wScore]            ; Carga el valor de wScore en el acumulador A.
-    
+    ld a, [wScore]          ; A = Dividendo
+
     ; Calcula las centenas
-    ld b, 100                 ; Coloca 100 en B para dividir.
-    call DivideByB            ; Divide A por 100 (resultado en A, residuo en C).
+    ld b, 100                   ; Coloca 100 en B para dividir.
+    call div_a_by_b                        
     add $80
-    ld [wScoreBuffer], a      ; Almacena el dígito de las centenas en wScoreBuffer.
+    ld [wScoreBuffer], a        ; Almacena el dígito de las centenas en wScoreBuffer.
+    ld a, b
     
     ; Calcula las decenas
-    ld a, c                   ; Cargar el residuo en A.
-    ld b, 10                  ; Coloca 10 en B para dividir.
-    call DivideByB            ; Divide A por 10 (resultado en A, residuo en C).
+    ld b, 10                    ; Coloca 10 en B para dividir.
+    call div_a_by_b                    
     add $80
-    ld [wScoreBuffer + 1], a  ; Almacena el dígito de las decenas en wScoreBuffer + 1.
+    ld [wScoreBuffer + 1], a    ; Almacena el dígito de las decenas en wScoreBuffer + 1.
+    ld a, b
     
     ; Calcula las unidades
-    ld a, c                   ; Cargar el residuo en A.
+    ld b, 1
+    call div_a_by_b
+    xor a
     add $80
-    ld [wScoreBuffer + 2], a  ; Almacena el dígito de las unidades en wScoreBuffer + 2.
+    ld [wScoreBuffer + 2], a    ; Almacena el dígito de las unidades en wScoreBuffer + 2.
     
-    ret                       ; Regresa de la función.
+    ret                         ; Regresa de la función.
 
 
-; Subrutina para dividir A por B y obtener el residuo en C
-; Entrada: A = dividendo, B = divisor
-; Salida:  A = cociente, C = residuo
-DivideByB:
-    xor c                     ; Limpia C (residuo).
-    ld d, 0                   ; D = 0 para acumular el cociente.
-LoopDivide:
-    cp b                      ; Compara A con B.
-    jr c, EndDivide           ; Si A < B, fin de la división.
-    sub b                     ; Resta B de A.
-    inc d                     ; Incrementa el cociente.
-    jr LoopDivide             ; Repite hasta que A < B.
-EndDivide:
-    ld a, d                   ; Coloca el cociente en A.
-    ld c, a                   ; Residuo queda en C.
+; A -> Dividendo (wScore)
+; B -> Divisor (1, 10 ,100)
+; C -> Resultado
+div_a_by_b:
+    ld c, 0                 ; C = Resultado
+
+    .div_loop
+        cp b                ; A - B            
+        jr c, .div_end      ; Si A > B está acabada
+        inc c               ; Sino C++
+        sub b               ; A -= B
+        jr .div_loop
+
+    .div_end
+        ld b, a             ; B = A
+        ld a, c             ; A = C = Resultado
+
     ret
-
-
-
 
 
 ; Entrada: wScoreBuffer = Variable de 6 bytes (3 dígitos, 3 tiles)
@@ -305,28 +275,27 @@ print_score:
     ret            ; Regresar de la función
 
 
+; Your life loss function
 lose_a_life:
-    ; Decrementar el número de vidas
+    ; Decrease lives
     ld a, [wLives]
     dec a
-    ld [wLives], a    ; Guardar el nuevo valor
+    ld [wLives], a    
     
-    ; Encontrar la posición correcta del último corazón
-    ld a, [wLives]    ; Cargar el nuevo número de vidas
-    ld b, a           ; Guardarlo en B para comparación
+    ; Check if game over (lives = 0)
+    and a
+    jp z, show_game_over_screen    ; Jump to game over if no lives left
     
-    ; Calcular la posición en VRAM para el corazón a borrar
-    ld hl, $9A01      ; Posición base de los corazones en VRAM
-    ld a, b           ; Recuperar el número de vidas
-    add l             ; Añadir al offset base
-    ld l, a           ; HL ahora apunta al corazón que queremos borrar
+    ; If not game over, continue with normal life loss routine
+    ld b, a           
+    ld hl, $9A01      
+    ld a, b           
+    add l             
+    ld l, a           
     
-    ; Borrar el corazón reemplazándolo con un espacio
     ld a, EMPTY_TILE
     ld [hl], a
     
-    ; Marcar que el HUD necesita actualizarse
     ld a, 1
     ld [wLivesChanged], a
-    
     ret

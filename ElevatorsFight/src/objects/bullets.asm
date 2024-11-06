@@ -166,7 +166,23 @@ UpdateBulletLogic::
 
 ; Actualiza los sprites de las balas en OAM (DEBE llamarse durante VBLANK)
 UpdateBulletSprites::
-    ld c, 0                   ; Bullet index
+    
+    ; OAM Layout:
+    ; _OAMRAM + 0  (4 bytes):  Player sprite
+    ; _OAMRAM + 4  (40 bytes): All bullets (10 bullets × 4 bytes)
+    ; _OAMRAM + 44: Start of enemy sprites
+
+    ; Clear all bullet slots first
+    ld hl, _OAMRAM + 4          ; Start after player sprite
+    ld b, 40                    ; Clear 40 bytes (10 bullets × 4 bytes)
+    xor a
+.clear_all_bullets:
+    ld [hl+], a                 ; Clear each byte of bullet OAM area
+    dec b
+    jr nz, .clear_all_bullets
+
+    ; Now update active bullets
+    ld c, 0                     ; Bullet index
 .updateLoop:
     push bc
 
@@ -176,64 +192,45 @@ UpdateBulletSprites::
     add hl, bc
     ld a, [hl]
     and a
-    jr z, .clearSprite        ; Si está inactiva, limpia el sprite
+    jr z, .nextBullet           ; Skip if inactive
 
-    ; Get positions for OAM
+    ; Get positions
     ld hl, wBulletPosX
     ld b, 0
     add hl, bc
-    ld d, [hl]              ; Save X position in D
+    ld d, [hl]                  ; X position in D
     
     ld hl, wBulletPosY
     ld b, 0
     add hl, bc
-    ld e, [hl]              ; Save Y position in E
+    ld e, [hl]                  ; Y position in E
 
-    ; Update OAM
+    ; Calculate OAM position
     push bc
-    ld hl, _OAMRAM + 4      ; Start after player sprite
     ld a, c
-    add a, a                ; × 4 for OAM entry size
+    add a, a                    ; × 4 for OAM entry size
     add a, a
     ld c, a
     ld b, 0
-    add hl, bc              
+    ld hl, _OAMRAM + 4         ; Bullets start after player
+    add hl, bc                  ; Add offset for this bullet
 
-    ; Write to OAM
-    ld a, e                 ; Y position
+    ; Write sprite data
+    ld a, e                     ; Y position
     ld [hl+], a
-    ld a, d                 ; X position
+    ld a, d                     ; X position
     ld [hl+], a
-    ld a, $01               ; Tile number
+    ld a, $01                   ; Tile number
     ld [hl+], a
-    xor a                   ; Attributes
+    xor a                       ; Attributes
     ld [hl], a
     
     pop bc
-    jr .nextSprite
 
-.clearSprite:
-    ; Clear from OAM
-    push bc
-    ld hl, _OAMRAM + 4     
-    ld a, c
-    add a, a               
-    add a, a
-    ld c, a
-    ld b, 0
-    add hl, bc             
-
-    xor a                  
-    ld [hl+], a            ; Clear Y
-    ld [hl+], a            ; Clear X
-    ld [hl+], a            ; Clear tile
-    ld [hl], a             ; Clear attributes
+.nextBullet:
     pop bc
-
-.nextSprite:
-    pop bc                 
     inc c
     ld a, c
-    cp 10                  
+    cp 10                       ; Check if we've done all bullets
     jr nz, .updateLoop
     ret
