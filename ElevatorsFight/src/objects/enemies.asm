@@ -1,5 +1,5 @@
-INCLUDE "objects/constants.asm"
-
+include "objects/constants.asm"
+include "hardware.inc"
 SECTION "Enemy Variables", WRAM0
 wEnemyArray:        DS MAX_ENEMIES * ENEMY_STRUCT_SIZE  ; Array to store enemy data
 wCurrentEnemies:    DS 1                                ; Current number of active enemies
@@ -9,7 +9,8 @@ wShootTimer:        DS 1                                ; Timer between enemy sh
 wLastShootingEnemy: DS 1                                ; Index of last enemy that shot
 wFailedAttempts:    DS 1                                ; Counter for failed shooting attempts
 
-DEF ENEMY_DELAY_SHOOT   EQU 60     ; 1 shot every 3 seconds
+
+DEF ENEMY_DELAY_SHOOT   EQU 60    ; 60 = 1 disparo por segundo
 DEF MAX_FAILED_ATTEMPTS EQU 5       ; Maximum number of failed attempts before forcing a shot
 DEF RANDOM_SEED_ADDR    EQU $FFE1   ; Using unused hardware address for random seed
 
@@ -19,18 +20,37 @@ SECTION "Enemy Code", ROM0
 ; Initialize all enemies
 initialize_enemies::
     ; Reset enemy counter based on current level
-    ld a, [wCurrentLevel]    ; wCurrentLevel is defined in levels.asm
+    ld a, [wCurrentLevel]    
     cp 1
     jr nz, .check_level2
     ld a, TOTAL_ENEMIES_LVL1
     jr .set_enemies
 .check_level2:
+    ld a, [wCurrentLevel]
     cp 2
-    jr nz, .level3
+    jr nz, .check_level3
     ld a, TOTAL_ENEMIES_LVL2
     jr .set_enemies
-.level3:
+.check_level3:
+    ld a, [wCurrentLevel]
+    cp 3
+    jr nz, .check_level4
     ld a, TOTAL_ENEMIES_LVL3
+    jr .set_enemies
+.check_level4:
+    ld a, [wCurrentLevel]
+    cp 4
+    jr nz, .check_level5
+    ld a, TOTAL_ENEMIES_LVL4
+    jr .set_enemies
+.check_level5:
+    ld a, [wCurrentLevel]
+    cp 5
+    jr nz, .check_level6
+    ld a, TOTAL_ENEMIES_LVL5
+    jr .set_enemies
+.check_level6:
+    ld a, TOTAL_ENEMIES_LVL6
 
 .set_enemies:
     ld [wCurrentEnemies], a
@@ -42,7 +62,7 @@ initialize_enemies::
     ld [wLastShootingEnemy], a
     
     ; Initialize random seed
-    ld a, [rDIV]      ; Get a semi-random value from divider register
+    ld a, [rDIV]
     ld [RANDOM_SEED_ADDR], a
 
     ; Initialize the delayShoot array
@@ -61,11 +81,20 @@ initialize_enemies::
     ; Initialize enemy formation based on level
     ld a, [wCurrentLevel]
     cp 1
-    jr z, .setup_level1
+    jp z, .setup_level1
     cp 2
-    jr z, .setup_level2
-    jp .setup_level3
+    jp z, .setup_level2
+    cp 3
+    jp z, .setup_level3
+    cp 4
+    jp z, .setup_level4
+    cp 5
+    jp z, .setup_level5
+    cp 6
+    jp z, .setup_level6
+    jp .setup_level1    ; Default to level 1 if unknown level
 
+; Los setups de los niveles originales (1-3)
 .setup_level1:
     ; Row formation (3 enemies)
     ld hl, wEnemyArray
@@ -205,7 +234,154 @@ initialize_enemies::
     ld [hl+], a
     ld a, 1           ; Active
     ld [hl+], a
+    jp .init_done
+.setup_level4:
+    ; Diagonal formation (8 enemies)
+    ld hl, wEnemyArray
+    ld b, TOTAL_ENEMIES_LVL4
+    ld c, 0           ; Spacing counter
+    
+.l4_loop:
+    ; X position (diagonal spacing)
+    ld a, 20
+    add a, c
+    ld [hl+], a       
+    ; Y position
+    ld a, 30
+    add a, c
+    ld [hl+], a
+    ; Direction (alternating diagonal right/left)
+    ld a, c
+    and %00000001     ; Check if even/odd
+    add a, DIR_DIAGONAL_RIGHT  ; 4 or 5 for diagonal movement
+    ld [hl+], a
+    ; Active status
+    ld a, 1
+    ld [hl+], a
+    ; Spacing
+    ld a, 16
+    add a, c
+    ld c, a
+    dec b
+    jp nz, .l4_loop
+    jp .init_done
 
+.setup_level5:
+    ; Up/Down formation (9 enemies in rows)
+    ld hl, wEnemyArray
+    
+    ; First row (3 enemies moving down)
+    ld b, 3
+    ld c, 0
+.l5_row1:
+    ; X position
+    ld a, 40
+    add a, c
+    ld [hl+], a
+    ; Y position
+    ld a, 20
+    ld [hl+], a
+    ; Direction (down)
+    ld a, DIR_DOWN
+    ld [hl+], a
+    ; Active
+    ld a, 1
+    ld [hl+], a
+    ; Spacing
+    ld a, 30
+    add a, c
+    ld c, a
+    dec b
+    jr nz, .l5_row1
+    
+    ; Second row (3 enemies moving up)
+    ld b, 3
+    ld c, 0
+.l5_row2:
+    ; X position
+    ld a, 40
+    add a, c
+    ld [hl+], a
+    ; Y position
+    ld a, 60
+    ld [hl+], a
+    ; Direction (up)
+    ld a, DIR_UP
+    ld [hl+], a
+    ; Active
+    ld a, 1
+    ld [hl+], a
+    ; Spacing
+    ld a, 30
+    add a, c
+    ld c, a
+    dec b
+    jr nz, .l5_row2
+    
+    ; Middle row (3 enemies moving left/right)
+    ld b, 3
+    ld c, 0
+.l5_row3:
+    ; X position
+    ld a, 40
+    add a, c
+    ld [hl+], a
+    ; Y position
+    ld a, 40
+    ld [hl+], a
+    ; Direction (right)
+    xor a
+    ld [hl+], a
+    ; Active
+    ld a, 1
+    ld [hl+], a
+    ; Spacing
+    ld a, 30
+    add a, c
+    ld c, a
+    dec b
+    jr nz, .l5_row3
+    jp .init_done
+
+.setup_level6:
+    ; Mixed formation (10 enemies with all patterns)
+    ld hl, wEnemyArray
+    ld b, TOTAL_ENEMIES_LVL6
+    ld c, 0          ; Counter for position
+    
+.l6_loop:
+    ; X position in zigzag
+    ld a, 30
+    add a, c
+    ld [hl+], a
+    
+    ; Y position alternating
+    ld a, c
+    and %00000011    ; 0-3 pattern
+    add a, 2         ; Avoid being too high
+    sla a            ; Multiply by 16
+    sla a
+    sla a
+    sla a
+    ld [hl+], a
+    
+    ; Direction (cycling through all patterns)
+    ld a, c
+    and %00000111    ; 0-7 range for different directions
+    ld [hl+], a
+    
+    ; Active
+    ld a, 1
+    ld [hl+], a
+    
+    ; Update spacing
+    ld a, 12
+    add a, c
+    ld c, a
+    
+    dec b
+    jp nz, .l6_loop
+    jp .init_done
 .init_done:
     call copy_enemy_tiles_to_vram
     ret
@@ -277,16 +453,30 @@ move_enemies::
     ld a, [wEnemyTimer]
     inc a
     ld [wEnemyTimer], a
+    
+    ; Get delay based on level
+    ld a, [wCurrentLevel]
+    cp 4
+    jr c, .check_normal_delay   ; Levels 1-3 use normal delay
+    
+    ld a, [wEnemyTimer]
+    cp 4                        ; Faster update for higher levels
+    ret nz
+    jr .continue_move
+
+.check_normal_delay:
+    ld a, [wEnemyTimer]
     cp MOVE_DELAY
     ret nz
 
+.continue_move:
     ; Reset timer
     xor a
     ld [wEnemyTimer], a
 
     ; Move each enemy
     ld hl, wEnemyArray
-    ld b, MAX_ENEMIES      ; Use MAX_ENEMIES here instead of wCurrentEnemies
+    ld b, MAX_ENEMIES
 
 .move_loop:
     push bc
@@ -294,84 +484,172 @@ move_enemies::
 
     ; Check if enemy is active
     ld bc, ENEMY_ACTIVE_OFFSET
-    add hl, bc         ; Point to active status
+    add hl, bc
     ld a, [hl]
     and a
-    jr z, .next_enemy  ; Skip if inactive
+    jp z, .next_enemy
 
     ; Get back to start of enemy struct
     pop hl
     push hl
     
-    ; Get X position and direction
-    ld a, [hl]         ; Get X position
-    ld b, a            ; Store X in B
+    ; Get speed based on level
+    push hl
+    ld a, [wCurrentLevel]
+    cp 4
+    jr c, .normal_speed
+    cp 5
+    jr c, .speed_4
+    cp 6
+    jr c, .speed_5
+    ld b, ENEMY_SPEED_LVL6
+    jr .got_speed
+.speed_4:
+    ld b, ENEMY_SPEED_LVL4
+    jr .got_speed
+.speed_5:
+    ld b, ENEMY_SPEED_LVL5
+    jr .got_speed
+.normal_speed:
+    ld b, ENEMY_SPEED
+.got_speed:
+    pop hl
+
+    ; Get direction and check pattern type
     inc hl
-    inc hl             ; Point to direction
-    ld a, [hl]         ; Get direction
-    and a              ; Check if 0 (right) or 1 (left)
-    jr nz, .move_left  ; If direction is 1, move left
+    inc hl
+    ld a, [hl]        ; Get direction
+    dec hl
+    dec hl
+    
+    cp DIR_RIGHT
+    jr z, .move_right
+    cp DIR_LEFT
+    jr z, .move_left
+    cp DIR_UP
+    jr z, .move_up
+    cp DIR_DOWN
+    jr z, .move_down
+    cp DIR_DIAGONAL_RIGHT
+    jr z, .move_diagonal_right
+    cp DIR_DIAGONAL_LEFT
+    jr z, .move_diagonal_left
+    jr .next_enemy    ; Unknown direction, skip
 
 .move_right:
-    ld a, b            ; Get X position back
-    cp ENEMY_MAX_X     ; Compare with right boundary
-    jr nc, .change_to_left
-    add ENEMY_SPEED    ; Move right
-    pop hl             ; Get array pointer
-    push hl
-    ld [hl], a         ; Update X position
+    ; Original right movement code
+    ld a, [hl]
+    cp ENEMY_MAX_X
+    jr nc, .change_dir_left
+    add b              ; Add speed
+    ld [hl], a
     jr .next_enemy
 
 .move_left:
-    ld a, b            ; Get X position back
-    cp ENEMY_MIN_X     ; Compare with left boundary
-    jr c, .change_to_right
-    sub ENEMY_SPEED    ; Move left
-    pop hl             ; Get array pointer
-    push hl
-    ld [hl], a         ; Update X position
+    ; Original left movement code
+    ld a, [hl]
+    cp ENEMY_MIN_X
+    jr c, .change_dir_right
+    sub b              ; Subtract speed
+    ld [hl], a
     jr .next_enemy
 
-.change_to_left:
-    ; First update direction to left (1)
-    pop hl             ; Get array pointer
-    push hl
-    inc hl
-    inc hl             ; Point to direction
-    ld a, 1
-    ld [hl], a         ; Set direction to left
-    ; Then move one step left
-    dec hl
-    dec hl             ; Back to X position
-    ld a, [hl]         ; Get current X
-    sub ENEMY_SPEED    ; Move left
-    ld [hl], a         ; Update X position
+.move_up:
+    ; Move Y position up
+    inc hl            ; Point to Y
+    ld a, [hl]
+    cp ENEMY_MIN_Y
+    jr c, .change_dir_down
+    sub b
+    ld [hl], a
     jr .next_enemy
 
-.change_to_right:
-    ; First update direction to right (0)
-    pop hl             ; Get array pointer
-    push hl
+.move_down:
+    ; Move Y position down
+    inc hl            ; Point to Y
+    ld a, [hl]
+    cp ENEMY_MAX_Y
+    jr nc, .change_dir_up
+    add b
+    ld [hl], a
+    jr .next_enemy
+
+.move_diagonal_right:
+    ; Move both X and Y
+    ld a, [hl]        ; X position
+    cp ENEMY_MAX_X
+    jr nc, .change_diagonal_left
+    add b
+    ld [hl+], a       ; Update X
+    ld a, [hl]        ; Y position
+    add b
+    cp ENEMY_MAX_Y
+    jr nc, .change_diagonal_left
+    ld [hl], a        ; Update Y
+    jr .next_enemy
+
+.move_diagonal_left:
+    ld a, [hl]        ; X position
+    cp ENEMY_MIN_X
+    jr c, .change_diagonal_right
+    sub b
+    ld [hl+], a       ; Update X
+    ld a, [hl]        ; Y position
+    sub b
+    cp ENEMY_MIN_Y
+    jr c, .change_diagonal_right
+    ld [hl], a        ; Update Y
+    jr .next_enemy
+
+.change_dir_left:
     inc hl
-    inc hl             ; Point to direction
-    xor a
-    ld [hl], a         ; Set direction to right
-    ; Then move one step right
-    dec hl
-    dec hl             ; Back to X position
-    ld a, [hl]         ; Get current X
-    add ENEMY_SPEED    ; Move right
-    ld [hl], a         ; Update X position
+    inc hl
+    ld a, DIR_LEFT
+    ld [hl], a
+    jr .next_enemy
+
+.change_dir_right:
+    inc hl
+    inc hl
+    ld a, DIR_RIGHT
+    ld [hl], a
+    jr .next_enemy
+
+.change_dir_up:
+    inc hl
+    inc hl
+    ld a, DIR_UP
+    ld [hl], a
+    jr .next_enemy
+
+.change_dir_down:
+    inc hl
+    inc hl
+    ld a, DIR_DOWN
+    ld [hl], a
+    jr .next_enemy
+
+.change_diagonal_left:
+    inc hl
+    inc hl
+    ld a, DIR_DIAGONAL_LEFT
+    ld [hl], a
+    jr .next_enemy
+
+.change_diagonal_right:
+    inc hl
+    inc hl
+    ld a, DIR_DIAGONAL_RIGHT
+    ld [hl], a
 
 .next_enemy:
-    pop hl             ; Restore array pointer
+    pop hl
     ld de, ENEMY_STRUCT_SIZE
-    add hl, de         ; Point to next enemy
+    add hl, de
     pop bc
     dec b
-    jr nz, .move_loop
+    jp nz, .move_loop
     ret
-
 ; Clear all enemies
 clear_enemies:
     ld hl, wEnemyArray
@@ -389,6 +667,7 @@ clear_enemies:
 ; Check for collisions between bullets and enemies
 
 
+; Enemy shooting logic
 ; Enemy shooting logic
 enemies_shoots::
     ; Check if there are any active enemies
@@ -428,20 +707,34 @@ enemies_shoots::
     sla a              ; × 2
     sla a              ; × 4
     
+    ; Save the original index for later
+    push af
+
     ; Check if selected enemy is active
     ld hl, wEnemyArray
     ld b, 0
     ld c, a
     add hl, bc         ; Point to enemy struct
     
-    push hl            ; Save enemy pointer
+    ; Double check enemy is still active before proceeding
+    push hl            ; Save enemy struct pointer
     ld bc, 3          ; Offset to active status
     add hl, bc
     ld a, [hl]        ; Get active status
-    pop hl            ; Restore enemy pointer
+    pop hl            ; Restore enemy struct pointer
+    
+    ; If enemy is not active, pop saved index and try again
     and a
-    jr nz, .shoot_with_enemy   ; If active, shoot with this enemy
+    jr z, .retry_find
 
+    ; Enemy is active, get saved index back but keep it on stack
+    pop af
+    push af
+    
+    jr .shoot_with_enemy   ; If active, shoot with this enemy
+
+.retry_find:
+    pop af            ; Clean up stack
     ; Enemy wasn't active, increment failed attempts
     ld a, [wFailedAttempts]
     inc a
@@ -485,19 +778,33 @@ enemies_shoots::
 
 .found_active:
     ld a, c           ; Get enemy index * 4 in A
+    push af           ; Save index for consistency with other path
 
 .shoot_with_enemy:
+    ; At this point, we have a confirmed active enemy and its index is on the stack
+    
     ; Save this as last shooting enemy
+    pop af            ; Get index
     ld [wLastShootingEnemy], a
 
-    ; DE = enemy position for shooting
+    ; Get enemy position
+    ld hl, wEnemyArray
+    ld b, 0
+    ld c, a
+    add hl, bc        ; Point to enemy struct
+
+    ; Final active check before shooting
     push hl
-    pop de
-    push de
-    push bc
+    ld bc, 3
+    add hl, bc
+    ld a, [hl]
+    pop hl
+    and a
+    ret z            ; Return if enemy became inactive
 
     ; Find inactive bullet
     ld bc, 0          ; Use C as counter
+    push hl           ; Save enemy pointer
     ld hl, wBulletActive
 
 .find_free_bullet:
@@ -522,7 +829,13 @@ enemies_shoots::
     ld a, 1
     ld [hl], a        ; Set as enemy bullet
 
+    ; Get enemy pointer back
+    pop hl            ; Restore enemy pointer
+
     ; Set bullet X position
+    push hl           ; Save enemy pointer
+    ld d, h
+    ld e, l          ; DE = enemy struct pointer
     ld hl, wBulletPosX
     add hl, bc
     ld a, [de]        ; Get enemy X
@@ -535,10 +848,12 @@ enemies_shoots::
     ld a, [de]        ; Get enemy Y
     add 7             ; Offset bullet position
     ld [hl], a        ; Set bullet Y
+    
+    pop hl            ; Clean up stack
+    jr .end
 
 .no_free_bullets:
-    pop bc
-    pop de
+    pop hl            ; Clean up stack
 
 .end:
     ; Make random seed more random by adding timer value
@@ -548,7 +863,6 @@ enemies_shoots::
     add b
     ld [RANDOM_SEED_ADDR], a
     ret
-
 ; Generate random number using improved LFSR
 generate_random:
     ; Get current seed
