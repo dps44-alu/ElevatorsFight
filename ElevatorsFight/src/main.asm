@@ -37,6 +37,14 @@ intro_text_tiles:
     ; Tile 8: A (16 bytes)
     db $7C,$7C,$C6,$C6,$C6,$C6,$FE,$FE
     db $C6,$C6,$C6,$C6,$C6,$C6,$00,$00
+
+    ; TIle 9: C (16 bytes)
+    db $7E,$7E,$C0,$C0,$C0,$C0,$C0,$C0
+    db $C0,$C0,$C0,$C0,$7E,$7E,$00,$00
+
+    ; Tile 10: :
+    db $00,$00,$18,$18,$18,$18,$00,$00
+    db $18,$18,$18,$18,$00,$00,$00,$00
 intro_text_tiles_end:
 
 SECTION "Game Over Screen Tiles", ROM0
@@ -354,6 +362,37 @@ show_game_over_screen::
     ld [hl], 8+2      ; R (intro tile 2)
     inc hl
     ld [hl], 8+6      ; T (intro tile 6)
+
+    ld hl, $9800 + (32 * 12) + 5  ; Two lines below of PRESS B TO START
+
+    ; Write "SCORE"
+    ld [hl], 8+4      ; S (intro tile 4)
+    inc hl
+    ld [hl], 8+9      ; C (intro tile 9)
+    inc hl
+    ld [hl], 8+7      ; O (intro tile 7)
+    inc hl
+    ld [hl], 8+2      ; R (intro tile 2)
+    inc hl
+    ld [hl], 8+3      ; E (intro tile 3)
+    inc hl
+    ld [hl], 8+10       ; :
+
+    ; Write wScore
+    ld d, h
+    ld e, l
+    ld hl, wScoreBuffer
+    inc de
+    ld a, [hl+]
+    ld [de], a
+
+    inc de
+    ld a, [hl+]
+    ld [de], a
+
+    inc de
+    ld a, [hl]
+    ld [de], a
     
     ; Turn screen back on
     ld a, LCDCF_ON | LCDCF_BGON
@@ -391,6 +430,15 @@ show_game_over_screen::
     ld [hl+], a
     dec b
     jr nz, .clear_press_b
+
+    ; Clear the "SCORE:wScore" line
+    ld hl, $9800 + (32 * 12) + 5  ; Two lines below SCORE:wScore
+    ld b, 16                      ; Length of "PRESS B TO START" including spaces
+.clear_score_screen
+    xor a 
+    ld [hl+], a
+    dec b
+    jr nz, .clear_score_screen
     
     ; Reset game state
     xor a

@@ -81,12 +81,14 @@ FireBullet::
     ld b, 0
     add hl, bc                  ; Point to correct X position
     ld a, [posicionNaveX]
+    add 8
     ld [hl], a                 
 
     ld hl, wBulletPosY
     ld b, 0
     add hl, bc                  ; Point to correct Y position
     ld a, [posicionNaveY]
+    add 11
     ld [hl], a                 
     ret
 

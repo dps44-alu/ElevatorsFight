@@ -6,7 +6,7 @@ DEF HUD_TILE_START EQU $80 ; Starting tile number for our HUD tiles
 SECTION "HUD Variables", WRAM0
 DEF FIRST_FREE_OAM_SLOT EQU 12 * 4  ; Each sprite uses 4 bytes
 
-wScore: ds 1          ; 1 bytes for score (0-100)
+wScore: ds 1          ; 1 bytes for score (0-1000)
 wLives: db            ; 1 byte for lives
 wScoreChanged: db     ; Flag to indicate if score needs updating
 wLivesChanged: db     ; Flag to indicate if lives need updating
@@ -17,36 +17,45 @@ SECTION "HUD Tiles", ROM0
 hud_tiles:
     ; Numbers 0-9 tiles (16 bytes each)
     ; [Your existing number tiles 0-9...]
-    ; 0
-    db $7E,$7E,$FF,$81,$FF,$81,$FF,$81
-    db $FF,$81,$FF,$81,$FF,$81,$7E,$7E
-    ; 1
-    db $1C,$1C,$3C,$1C,$1C,$1C,$1C,$1C
-    db $1C,$1C,$1C,$1C,$1C,$1C,$7F,$7F
-    ; 2
-    db $7E,$7E,$FF,$81,$03,$03,$0E,$0E
-    db $38,$38,$E0,$E0,$FF,$FF,$FF,$FF
-    ; 3
-    db $7E,$7E,$FF,$81,$03,$03,$1E,$1E
-    db $03,$03,$FF,$81,$7E,$7E,$00,$00
-    ; 4
-    db $C3,$C3,$C3,$C3,$C3,$C3,$FF,$FF
-    db $03,$03,$03,$03,$03,$03,$00,$00
-    ; 5
-    db $FF,$FF,$FC,$FC,$FE,$FE,$03,$03
-    db $FF,$81,$7E,$7E,$00,$00,$00,$00
-    ; 6
-    db $7E,$7E,$FF,$81,$FC,$FC,$FE,$FE
-    db $FF,$81,$7E,$7E,$00,$00,$00,$00
-    ; 7
-    db $FF,$FF,$FF,$FF,$03,$03,$0E,$0E
-    db $38,$38,$E0,$E0,$80,$80,$00,$00
-    ; 8
-    db $7E,$7E,$FF,$81,$FF,$81,$7E,$7E
-    db $FF,$81,$FF,$81,$7E,$7E,$00,$00
-    ; 9
-    db $7E,$7E,$FF,$81,$FF,$81,$7F,$7F
-    db $03,$03,$FF,$81,$7E,$7E,$00,$00
+    ; Número 0
+    db $7E,$7E,$C6,$C6,$C6,$C6,$C6,$C6
+    db $C6,$C6,$C6,$C6,$7E,$7E,$00,$00
+
+    ; Número 1
+    db $18,$18,$38,$38,$18,$18,$18,$18
+    db $18,$18,$18,$18,$3C,$3C,$00,$00
+
+    ; Número 2
+    db $7E,$7E,$C6,$C6,$06,$06,$1C,$1C
+    db $70,$70,$C0,$C0,$FE,$FE,$00,$00
+
+    ; Número 3
+    db $7E,$7E,$C6,$C6,$06,$06,$1C,$1C
+    db $06,$06,$C6,$C6,$7E,$7E,$00,$00
+
+    ; Número 4
+    db $C6,$C6,$C6,$C6,$C6,$C6,$FE,$FE
+    db $06,$06,$06,$06,$06,$06,$00,$00
+
+    ; Número 5
+    db $FE,$FE,$C0,$C0,$C0,$C0,$FC,$FC
+    db $06,$06,$C6,$C6,$7C,$7C,$00,$00
+
+    ; Número 6
+    db $7E,$7E,$C0,$C0,$C0,$C0,$FC,$FC
+    db $C6,$C6,$C6,$C6,$7C,$7C,$00,$00
+
+    ; Número 7
+    db $FE,$FE,$C6,$C6,$06,$06,$0C,$0C
+    db $18,$18,$18,$18,$18,$18,$00,$00
+
+    ; Número 8
+    db $7C,$7C,$C6,$C6,$C6,$C6,$7C,$7C
+    db $C6,$C6,$C6,$C6,$7C,$7C,$00,$00
+
+    ; Número 9
+    db $7C,$7C,$C6,$C6,$C6,$C6,$7E,$7E
+    db $06,$06,$C6,$C6,$7C,$7C,$00,$00
     ; Heart tile (for lives)
     db $66,$66,$FF,$FF,$FF,$7E,$7E,$3C
     db $3C,$18,$18,$00,$00,$00,$00,$00
@@ -206,7 +215,9 @@ UpdateHUDGraphics::
 ; Entrada: HL = Dirección de la variable de 1 byte que contiene el puntaje (0-100)
 ; Salida: scoreBuffer = 6 bytes (3 para dígitos, 3 para tiles)
 convert_score:
-    ld a, [wScore]          ; A = Dividendo
+    ld a, [wScore]
+
+    ; ld a, [wScore]          ; A = Dividendo
 
     ; Calcula las centenas
     ld b, 100                   ; Coloca 100 en B para dividir.
@@ -225,30 +236,31 @@ convert_score:
     ; Calcula las unidades
     ld b, 1
     call div_a_by_b
-    xor a
+    ; xor a
     add $80
     ld [wScoreBuffer + 2], a    ; Almacena el dígito de las unidades en wScoreBuffer + 2.
     
     ret                         ; Regresa de la función.
 
 
-; A -> Dividendo (wScore)
+; A -> Dividendo (Low wScore)
+; D -> Dividendo (High wScore)
 ; B -> Divisor (1, 10 ,100)
 ; C -> Resultado
 div_a_by_b:
-    ld c, 0                 ; C = Resultado
+    ld c, 0                     ; C = Resultado
 
     .div_loop
-        cp b                ; A - B            
-        jr c, .div_end      ; Si A > B está acabada
-        inc c               ; Sino C++
-        sub b               ; A -= B
+        cp b                    ; A - B            
+        jr c, .div_end          ; Si A > B está acabada
+        inc c                   ; Sino C++
+        sub b                   ; A -= B
         jr .div_loop
 
     .div_end
-        ld b, a             ; B = A
-        ld a, c             ; A = C = Resultado
-
+        ld b, a                 ; B = A
+        ld a, c                 ; A = C = Resultado
+    
     ret
 
 

@@ -68,7 +68,10 @@ win_screen_tiles:
     ; Tile 14: C
     db $7C,$7C,$C6,$C6,$C0,$C0,$C0,$C0
     db $C0,$C0,$C6,$C6,$7C,$7C,$00,$00
-    
+
+    ; Tile 15: :
+    db $00,$00,$18,$18,$18,$18,$00,$00
+    db $18,$18,$18,$18,$00,$00,$00,$00
 win_screen_tiles_end:
 SECTION "Level Code", ROM0
 
@@ -126,7 +129,7 @@ show_win_screen::
     jr nz, .clear_loop
 
     ; Write "YOU WIN!" centered
-    ld hl, $9800 + (32 * 8) + 5  
+    ld hl, $9800 + (32 * 8) + 6  
     
     ; Write "YOU WIN!" using win screen tiles
     ld [hl], 1        ; Y
@@ -145,8 +148,39 @@ show_win_screen::
     inc hl
     ld [hl], 7        ; !
 
+    ld hl, $9800 + (32 * 10) + 5  ; Two lines below SCORE:wScore
+
+    ; Write "SCORE"
+    ld [hl], 11      ; S (intro tile 4)
+    inc hl
+    ld [hl], 14      ; C (intro tile 9)
+    inc hl
+    ld [hl], 2      ; O (intro tile 7)
+    inc hl
+    ld [hl], 9      ; R (intro tile 2)
+    inc hl
+    ld [hl], 10      ; E (intro tile 3)
+    inc hl
+    ld [hl], 15       ; :
+
+    ; Write wScore
+    ld d, h
+    ld e, l
+    ld hl, wScoreBuffer
+    inc de
+    ld a, [hl+]
+    ld [de], a
+
+    inc de
+    ld a, [hl+]
+    ld [de], a
+
+    inc de
+    ld a, [hl]
+    ld [de], a
+
     ; Write "PRESS B TO CONTINUE"
-    ld hl, $9800 + (32 * 10) + 1
+    ld hl, $9800 + (32 * 12) + 1
     
     ; Write "PRESS"
     ld [hl], 8       ; P

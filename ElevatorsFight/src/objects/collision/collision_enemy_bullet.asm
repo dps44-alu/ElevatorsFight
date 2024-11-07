@@ -94,7 +94,7 @@ check_bullet_enemy_collisions::
     ; Add 10 points to score
     ld hl, wScore
     ld a, [hl]        ; Get low byte of score
-    add 10            ; Add 10 points
+    add 5            ; Add 10 points
     ld [hl], a        ; Store new score
     ld a, 1
     ld [wScoreChanged], a  ; Mark score for update
