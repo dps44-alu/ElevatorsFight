@@ -1,22 +1,20 @@
-INCLUDE "hardware.inc"    ; Include hardware constants
+INCLUDE "hardware.inc"    
 
-; Constants for HUD tiles
-DEF HUD_TILE_START EQU $80 ; Starting tile number for our HUD tiles
+DEF HUD_TILE_START EQU $80  ; 0 (Comienzo)
 
 SECTION "HUD Variables", WRAM0
-DEF FIRST_FREE_OAM_SLOT EQU 12 * 4  ; Each sprite uses 4 bytes
+DEF FIRST_FREE_OAM_SLOT EQU 12 * 4  ; 1 sprite -> 4 bytes
 
-wScore: ds 1          ; 1 bytes for score (0-1000)
-wLives: db            ; 1 byte for lives
-wScoreChanged: db     ; Flag to indicate if score needs updating
-wLivesChanged: db     ; Flag to indicate if lives need updating
-wScoreBuffer: ds 3    ; Buffer to hold the score digits for display
-wLivesBuffer: ds 3    ; Buffer to hold the lives display data
+wScore: ds 1          ; 1 byte para score (255 puntos)
+wLives: db            ; 1 byte para las vidas
+wScoreChanged: db     ; 1 = necesita actualización, 0 = no la necesita
+wLivesChanged: db     ; 1 = necesita actualización, 0 = no la necesita
+wScoreBuffer: ds 3    ; Guarda los tiles del Score
+wLivesBuffer: ds 3    ; Cuarda los tiles de las vidas
 
 SECTION "HUD Tiles", ROM0
+
 hud_tiles:
-    ; Numbers 0-9 tiles (16 bytes each)
-    ; [Your existing number tiles 0-9...]
     ; Número 0
     db $7E,$7E,$C6,$C6,$C6,$C6,$C6,$C6
     db $C6,$C6,$C6,$C6,$7E,$7E,$00,$00
@@ -56,42 +54,43 @@ hud_tiles:
     ; Número 9
     db $7C,$7C,$C6,$C6,$C6,$C6,$7E,$7E
     db $06,$06,$C6,$C6,$7C,$7C,$00,$00
-    ; Heart tile (for lives)
+
+    ; Corazón
     db $66,$66,$FF,$FF,$FF,$7E,$7E,$3C
     db $3C,$18,$18,$00,$00,$00,$00,$00
-    ; Letter tiles for "SCORE:" (16 bytes each)
+
     ; S 
-    db $7E,$7C,$FF,$FE,$C0,$C0,$7E,$7C  ; Top curve and middle
-    db $03,$02,$FF,$FE,$7E,$7C,$00,$00  ; Bottom curve
+    db $7E,$7C,$FF,$FE,$C0,$C0,$7E,$7C  
+    db $03,$02,$FF,$FE,$7E,$7C,$00,$00 
 
     ; C
-    db $7E,$7C,$FF,$FE,$C0,$C0,$C0,$C0  ; Top curve and left side
-    db $C0,$C0,$FF,$FE,$7E,$7C,$00,$00  ; Bottom curve
+    db $7E,$7C,$FF,$FE,$C0,$C0,$C0,$C0  
+    db $C0,$C0,$FF,$FE,$7E,$7C,$00,$00  
 
     ; O
-    db $7E,$7C,$FF,$FE,$C3,$C2,$C3,$C2  ; Top curve and sides
-    db $C3,$C2,$FF,$FE,$7E,$7C,$00,$00  ; Bottom curve
+    db $7E,$7C,$FF,$FE,$C3,$C2,$C3,$C2 
+    db $C3,$C2,$FF,$FE,$7E,$7C,$00,$00
 
-    db $FF,$FE,$C3,$C2,$C3,$C2,$FF,$FE  ; Top half - like P
+    db $FF,$FE,$C3,$C2,$C3,$C2,$FF,$FE 
     db $CC,$CC,$C6,$C6,$C3,$C2,$00,$00
 
     ; E
-    db $FF,$FE,$C0,$C0,$C0,$C0,$FF,$FE  ; Top and middle
-    db $C0,$C0,$FF,$FE,$FF,$FE,$00,$00  ; Bottom
+    db $FF,$FE,$C0,$C0,$C0,$C0,$FF,$FE  
+    db $C0,$C0,$FF,$FE,$FF,$FE,$00,$00  
 
-    ; : (colon - centered with space right)
-    db $00,$00,$38,$38,$38,$38,$00,$00  ; Top dot
-    db $38,$38,$38,$38,$00,$00,$00,$00  ; Bottom dot
-    ; Space
+    ; : 
+    db $00,$00,$38,$38,$38,$38,$00,$00  
+    db $38,$38,$38,$38,$00,$00,$00,$00 
+
+    ; Espacio
     db $00,$00,$00,$00,$00,$00,$00,$00
     db $00,$00,$00,$00,$00,$00,$00,$00
 hud_tiles_end:
 
-; Constants for letter tiles
-DEF EMPTY_TILE     EQU $00    ; Empty space tile
-DEF NUMBER_START   EQU HUD_TILE_START      ; First number (0)
-DEF HEART_TILE    EQU HUD_TILE_START + 10  ; After numbers
-DEF LETTER_S      EQU HUD_TILE_START + 11  ; After heart
+DEF EMPTY_TILE     EQU $00                  
+DEF NUMBER_START   EQU HUD_TILE_START       ; Primer número (0)
+DEF HEART_TILE    EQU HUD_TILE_START + 10   ; Después de los números 
+DEF LETTER_S      EQU HUD_TILE_START + 11   ; Después del corazón
 DEF LETTER_C      EQU HUD_TILE_START + 12
 DEF LETTER_O      EQU HUD_TILE_START + 13
 DEF LETTER_R      EQU HUD_TILE_START + 14
@@ -100,8 +99,8 @@ DEF LETTER_COLON  EQU HUD_TILE_START + 16
 DEF LETTER_SPACE  EQU HUD_TILE_START + 17
 
 SECTION "HUD Functions", ROM0
+
 InitHUD::
-    ; Load HUD tiles into VRAM
     ld de, hud_tiles
     ld hl, _VRAM8000 + (HUD_TILE_START * 16)  
     ld bc, hud_tiles_end - hud_tiles
@@ -114,7 +113,7 @@ InitHUD::
     or c
     jr nz, .copyTiles
 
-    ; Write "SCORE:" at $9A0A
+    ; Escribe "SCORE:wScore" 
     ld hl, $9A0A
     ld a, LETTER_S          
     ld [hl+], a             ; 9A0A
@@ -133,36 +132,37 @@ InitHUD::
     ld [hl+], a             ; 9A11
     ld [hl], a              ; 9A12
     
-    ; Draw the initial hearts
-    ld hl, $9A01          ; Position for first heart
-    ld a, HEART_TILE      ; Heart tile
-    ld [hl+], a           ; First heart
-    ld [hl+], a           ; Second heart
-    ld [hl], a            ; Third heart
+    ; Dibuja los corazones
+    ld hl, $9A01          
+    ld a, HEART_TILE      
+    ld [hl+], a           
+    ld [hl+], a           
+    ld [hl], a            
     
-    ; Initialize variables
+    ; Inicializa variables
     xor a
     ld [wScore], a
     ld a, 3
     ld [wLives], a
-    xor a
+    ld a, 1
     ld [wScoreChanged], a
+    xor a
     ld [wLivesChanged], a
     ret
 
 UpdateHUDLogic::
     ld a, [wScoreChanged]
     and a
-    jr z, .checkLives       ; If score hasn't changed, check lives
+    jr z, .checkLives       ; Si el score no cambia, comprueba las vidas
 
-    call convert_score      ; Convert score to digits
+    call convert_score      ; Convierte wScore en tiles en wScoreBuffer
     
 .checkLives:
     ld a, [wLivesChanged]
     and a
     ret z
     
-    ; Convert lives to display format
+    ; Comvierte los corazones en tiles
     ld a, [wLives]
     ld b, a
     ld hl, wLivesBuffer
@@ -180,7 +180,6 @@ UpdateHUDLogic::
     ret
 
 UpdateHUDGraphics::
-    ; Update score display if changed
     ld a, [wScoreChanged]
     and a
     jr z, .updateLives
@@ -196,10 +195,9 @@ UpdateHUDGraphics::
     and a
     ret z
     
-    ; Display lives at specific address $9A01
     ld hl, $9A01          
     ld de, wLivesBuffer
-    ld b, 3                ; Maximum 3 lives
+    ld b, 3             
 .livesDisplayLoop:
     ld a, [de]
     ld [hl+], a
@@ -212,12 +210,10 @@ UpdateHUDGraphics::
     ret
 
 
-; Entrada: HL = Dirección de la variable de 1 byte que contiene el puntaje (0-100)
+; Entrada: HL = Dirección de la variable de 1 byte que contiene el puntaje (255 puntos)
 ; Salida: scoreBuffer = 6 bytes (3 para dígitos, 3 para tiles)
 convert_score:
     ld a, [wScore]
-
-    ; ld a, [wScore]          ; A = Dividendo
 
     ; Calcula las centenas
     ld b, 100                   ; Coloca 100 en B para dividir.
@@ -271,34 +267,31 @@ print_score:
     
     ; Imprimir el dígito y tile de las centenas
     ld a, [hl+]     ; Cargar el dígito de las centenas
-    ld de, $9A10   ; Establecer la posición de impresión para las centenas
-    ld [de], a     ; Escribir el tile en la VRAM
+    ld de, $9A10    ; Establecer la posición de impresión para las centenas
+    ld [de], a      ; Escribir el tile en la VRAM
     
     ; Imprimir el dígito y tile de las decenas    
     ld a, [hl+]     ; Cargar el dígito de las decenas
     inc de          ; DE = $9A11
-    ld [de], a     ; Escribir el tile en la VRAM
+    ld [de], a      ; Escribir el tile en la VRAM
 
     ; Imprimir el dígito y tile de las unidades
-    ld a, [hl]     ; Cargar el dígito de las unidades
+    ld a, [hl]      ; Cargar el dígito de las unidades
     inc de          ; DE = $9A12
-    ld [de], a     ; Escribir el tile en la VRAM
+    ld [de], a      ; Escribir el tile en la VRAM
     
-    ret            ; Regresar de la función
+    ret         
 
 
-; Your life loss function
 lose_a_life:
-    ; Decrease lives
+    ; Vidas -1
     ld a, [wLives]
     dec a
     ld [wLives], a    
     
-    ; Check if game over (lives = 0)
     and a
-    jp z, show_game_over_screen    ; Jump to game over if no lives left
+    jp z, show_game_over_screen    ; Si las vidas son 0, game over
     
-    ; If not game over, continue with normal life loss routine
     ld b, a           
     ld hl, $9A01      
     ld a, b           

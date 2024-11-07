@@ -1,56 +1,54 @@
 include "hardware.inc"
 
 SECTION "BulletVariables", WRAM0
-wBulletActive: ds 10        ; Array of 10 active bullets (1 = active, 0 = inactive)
-wBulletPosX: ds 10          ; Array of X positions for each bullet
-wBulletPosY: ds 10          ; Array of Y positions for each bullet
-wShootDelay: ds 1           ; Counter for shooting delay
+wBulletActive: ds 10        ; Array del estado de 10 balas (1 = activa, 0 = inactiva)
+wBulletPosX: ds 10          ; Array de la posición X de cada bala
+wBulletPosY: ds 10          ; Array de la posición Y de cada bala
+wShootDelay: ds 1           ; COntador para el delay de los disparos
 wBulletDirection: DS 10     ; 0 = down_to_up, 1 = up_to_down
 
 SECTION "Bullet", ROM0
 
 initializeBullet::
-    ; Load bullet sprite into VRAM (debe hacerse durante VBLANK o con pantalla apagada)
     ld de, bala_vertical          
     ld hl, $8010                  
     ld bc, bala_vertical_end - bala_vertical
     call mem_copy                 
 
-    ; Initialize all bullets as inactive and off-screen
-    ld b, 10                      ; Bullet counter
+    ; Inicializar las balas como inactivas
+    ld b, 10                      
     ld hl, wBulletActive
 .clearLoop:
     xor a
-    ld [hl+], a                  ; Initialize as inactive
-    ld [hl+], a                  ; Initialize PosX
-    ld [hl+], a                  ; Initialize PosY
+    ld [hl+], a                
+    ld [hl+], a                  ; PosX
+    ld [hl+], a                  ; PosY
     dec b
     jr nz, .clearLoop
 
-    ; Initialize shoot delay
+    ; Inicializa el delay
     xor a
-    ld [wShootDelay], a         ; Start with no delay
+    ld [wShootDelay], a         ; Empieza sin delay
     ret
 
 ; Puede llamarse en cualquier momento - maneja la lógica de disparo
 FireBullet::
-    ; First check if we're still in delay
+    ; Comprueba el delay
     ld a, [wShootDelay]
-    and a                      ; Check if delay is zero
-    jr z, .canShoot            ; If zero, we can shoot
-    ret                        ; If not zero, return without shooting
+    and a                      
+    jr z, .canShoot            
+    ret                       
 
 .canShoot:
-    ; Check for new button press
+    ; Comprueba si se han apretado el botón A
     ld a, [wNewKeys]
-    and PADF_A                  ; Check if A button is newly pressed
-    ret z                       ; Return if A is not newly pressed
+    and PADF_A                  
+    ret z                       
     
-    ; Set shooting delay (adjust this value to change delay length)
-    ld a, 30                    ; About 0.5 seconds at 60 FPS
+    ld a, 30                    ; 0.5 seugndos 60 FPS
     ld [wShootDelay], a
     
-    ; Find inactive bullet
+    ; Busca una bala inactiva
     ld c, 0                     ; Use C as counter
     ld hl, wBulletActive        
 .findFreeBullet:
@@ -61,32 +59,32 @@ FireBullet::
     inc c                       
     ld a, c
     cp 10
-    ret z                      ; No free bullets found
+    ret z                      ; No se ha encontrado ninguna
     jr .findFreeBullet
 
 .foundFree:
-    ; Activate bullet
+    ; Activa la bala
     ld a, 1
-    ld [hl], a                  ; Set as active
+    ld [hl], a             
 
-    ; Set 0 = down_to_up -> Dispara el jugador 
+    ; 0 = down_to_up -> Dispara el jugador 
     ld hl, wBulletDirection
     ld b, 0
     add hl, bc
     xor a
     ld [hl], a
 
-    ; Set bullet position
+
     ld hl, wBulletPosX
     ld b, 0
-    add hl, bc                  ; Point to correct X position
+    add hl, bc                  ; X
     ld a, [posicionNaveX]
     add 8
     ld [hl], a                 
 
     ld hl, wBulletPosY
     ld b, 0
-    add hl, bc                  ; Point to correct Y position
+    add hl, bc                  ; Y 
     ld a, [posicionNaveY]
     add 11
     ld [hl], a                 
@@ -94,25 +92,25 @@ FireBullet::
 
 ; Actualiza la lógica de las balas (puede llamarse en cualquier momento)
 UpdateBulletLogic::
-    ; First update the shoot delay
+    ; Actualiza el delay
     ld a, [wShootDelay]
-    and a                       ; Check if delay is active
-    jr z, .updateBullets       ; If zero, skip decreasing
-    dec a                       ; Decrease delay counter
-    ld [wShootDelay], a        ; Save new delay value
+    and a                      
+    jr z, .updateBullets     
+    dec a                     
+    ld [wShootDelay], a        
 
 .updateBullets:
-    ld c, 0                   ; Bullet index
+    ld c, 0                   ; Índice de la bala
 .updateLoop:
     push bc                   
 
-    ; Check if bullet is active
+    ; Comprueba si está activa
     ld hl, wBulletActive
     ld b, 0
     add hl, bc
     ld a, [hl]
     and a
-    jr z, .nextBullet        ; Skip if inactive
+    jr z, .nextBullet        ; Skip si está inactiva
 
     ; Comprueba si la bala la dispara el jugador (0) o el enemigo (1)
     ld hl, wBulletDirection
@@ -123,35 +121,33 @@ UpdateBulletLogic::
     jr nz, .move_down      ; Skip si la dispara el enemigo
 
 .move_up
-    ; Update Y position
     ld hl, wBulletPosY
     ld b, 0
     add hl, bc
     ld a, [hl]
-    sub 2                    ; Move up
-    ld [hl], a               ; Save new Y position
+    sub 2                    ; Mueve arriba
+    ld [hl], a               ; Y
     
-    ; Check if off screen
+    ; Comrueba si la pantalla está apagada
     cp 16                    
     jr c, .deactivateBullet
     jr .nextBullet
 
 .move_down
-    ; Update Y position
     ld hl, wBulletPosY
     ld b, 0
     add hl, bc
     ld a, [hl]
-    add 2                    ; Move down
-    ld [hl], a               ; Save new Y position
+    add 2                    ; Mueve abajo
+    ld [hl], a               ; Y
 
-    ; Check if off screen
+    ; Comrueba si la pantalla está apagada
     cp 144                
     jr nc, .deactivateBullet
     jr .nextBullet
 
 .deactivateBullet:
-    ; Deactivate bullet
+    ; Desactiva la bala
     ld hl, wBulletActive
     ld b, 0
     add hl, bc
@@ -169,62 +165,60 @@ UpdateBulletLogic::
 ; Actualiza los sprites de las balas en OAM (DEBE llamarse durante VBLANK)
 UpdateBulletSprites::
     
-    ; OAM Layout:
-    ; _OAMRAM + 0  (4 bytes):  Player sprite
-    ; _OAMRAM + 4  (40 bytes): All bullets (10 bullets × 4 bytes)
-    ; _OAMRAM + 44: Start of enemy sprites
+    ; OAM:
+    ; _OAMRAM + 0  (4 bytes):  Sprite del jugador
+    ; _OAMRAM + 4  (40 bytes): Todas las balas (10 balas * 4 bytes)
+    ; _OAMRAM + 44: Comienzo de los sprites de los enemigos
 
-    ; Clear all bullet slots first
-    ld hl, _OAMRAM + 4          ; Start after player sprite
-    ld b, 40                    ; Clear 40 bytes (10 bullets × 4 bytes)
+    ; Limpia los de las balas
+    ld hl, _OAMRAM + 4         
+    ld b, 40                    ; 40 bytes (10 balas * 4 bytes)
     xor a
 .clear_all_bullets:
-    ld [hl+], a                 ; Clear each byte of bullet OAM area
+    ld [hl+], a                
     dec b
     jr nz, .clear_all_bullets
 
-    ; Now update active bullets
-    ld c, 0                     ; Bullet index
+    ld c, 0                     ; ïnidce de balas
 .updateLoop:
     push bc
 
-    ; Check if bullet is active
+    ; Comprueba si está activa
     ld hl, wBulletActive
     ld b, 0
     add hl, bc
     ld a, [hl]
     and a
-    jr z, .nextBullet           ; Skip if inactive
+    jr z, .nextBullet           ; Skip si inactiva
 
-    ; Get positions
     ld hl, wBulletPosX
     ld b, 0
     add hl, bc
-    ld d, [hl]                  ; X position in D
+    ld d, [hl]                  ; X en D
     
     ld hl, wBulletPosY
     ld b, 0
     add hl, bc
-    ld e, [hl]                  ; Y position in E
+    ld e, [hl]                  ; Y en E
 
-    ; Calculate OAM position
+    ; Calcula posición en la OAM
     push bc
     ld a, c
-    add a, a                    ; × 4 for OAM entry size
+    add a, a                    ; *4 para la OAM 
     add a, a
     ld c, a
     ld b, 0
-    ld hl, _OAMRAM + 4         ; Bullets start after player
-    add hl, bc                  ; Add offset for this bullet
+    ld hl, _OAMRAM + 4          ; La bala empieza después del jugador
+    add hl, bc                  ; Añade el offset
 
-    ; Write sprite data
-    ld a, e                     ; Y position
+    ; Escribe la información de la bala
+    ld a, e                     ; Y 
     ld [hl+], a
-    ld a, d                     ; X position
+    ld a, d                     ; X 
     ld [hl+], a
-    ld a, $01                   ; Tile number
+    ld a, $01                   ; Tile 
     ld [hl+], a
-    xor a                       ; Attributes
+    xor a                       ; Atributos
     ld [hl], a
     
     pop bc
@@ -233,6 +227,6 @@ UpdateBulletSprites::
     pop bc
     inc c
     ld a, c
-    cp 10                       ; Check if we've done all bullets
+    cp 10                       ; Comprueba si no quedan balas
     jr nz, .updateLoop
     ret

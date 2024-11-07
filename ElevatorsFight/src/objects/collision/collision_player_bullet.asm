@@ -1,21 +1,16 @@
 INCLUDE "objects/constants.asm"
-SECTION "Collision Player Variables", WRAM0
-
 
 SECTION "Collision Player Code", ROM0
-
-; Check for collisions between bullets and enemies
-; Modifies all registers
 
 check_bullet_player_collisions::
     ld hl, posicionNaveX
     ld d, [hl]              ; D = naveX
     ld hl, posicionNaveY
     ld e, [hl]              ; E = naveY
-    ld bc, 0                ; Bullet counter
+    ld bc, 0                ; Contaodr de balas
 
     .bullet_loop:       
-        ; Check if bullet is active
+        ; Comprueba si la bala está activa
         ld hl, wBulletActive
         add hl, bc
         ld a, [hl]
@@ -29,27 +24,24 @@ check_bullet_player_collisions::
         and a
         jr z, .next_bullet      ; Si es 0 = down_to_up, la dispara el jugador y pasamos a la siguiente
         
-        ; Get bullet position
         ld hl, wBulletPosX
         add hl, bc
-        ld a, [hl]        ; A = Bullet X
+        ld a, [hl]          ; A = Bala X
         
-        ; Compare X positions
-        sub d             ; Bullet X - Enemy X
-        cp 16             ; Check if within range
+        sub d               ; Bala X - Enemigo X
+        cp 16             
         jr nc, .next_bullet
         
         ld hl, wBulletPosY
         add hl, bc
-        ld a, [hl]        ; A = Bullet Y
+        ld a, [hl]          ; A = Bala Y
         
-        ; Compare Y positions
-        sub e             ; Bullet Y - Enemy Y
+        sub e               ; Bala Y - Enemigo Y
         sub 12              ; Ajustar
-        cp 16             ; Check if within range
+        cp 16              
         jr nc, .next_bullet
         
-        ; Deactivate bullet
+        ; Desactiva la bala
         ld hl, wBulletActive
         ld b, 0
         add hl, bc
@@ -61,7 +53,7 @@ check_bullet_player_collisions::
     .next_bullet:
         inc c
         ld a, c
-        cp 10             ; Max bullets check
+        cp 10               ; Máximo de balas
         jr nz, .bullet_loop
 
     ret

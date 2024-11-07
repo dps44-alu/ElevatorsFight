@@ -97,27 +97,25 @@ wBallMomentumX: db
 wBallMomentumY: db
 
 SECTION "Main", ROM0[$0150]
+
 main:
-    ;; Show intro screen first
     call show_intro_screen
     
-    ; After B is pressed, first clear the text
     call switch_screen_off
     
-    ; Clear the text line
     ld hl, $9800 + (32 * 8) + 2
     ld b, 16
+
 .clear_text
     ld [hl], 0
     inc hl
     dec b
     jr nz, .clear_text
 
-    ; Initialize game state
-    ld a, 1            ; Set to playing state
-    ld [wGameState], a
+    ld a, 1            
+    ld [wGameState], a  ; 1 = jugando
 
-    ; Copia los tiles PARA EL FONDO
+    ; Copia los tiles para el fondo
     ld de, tilesfondo
     ld hl, $9000
     ld bc, tilesfondoend - tilesfondo
@@ -138,6 +136,7 @@ main:
     call clear_oam
     call setup_screen
 
+    ; Inicializar las paletas
     ld a, %11100100
     ld [rBGP], a
     ld a, %11100100
@@ -149,10 +148,10 @@ main:
     ld [wNewKeys], a
 
 game_loop:
-    ; Check game state
+    ; Comprueba el estado
     ld a, [wGameState]
-    cp 2                  ; Check if game over
-    jp z, show_game_over_screen
+    cp 2                            
+    jp z, show_game_over_screen     ; Si es 2, es game over
 
     call update_keys
     call updateNave
@@ -163,43 +162,32 @@ game_loop:
     call check_bullet_player_collisions
     call check_level_complete
 
-    ; Check level completion
+    ; Comprueba si el nivel se ha completado
     call check_level_complete
     ld a, [wLevelComplete]
     and a
     call nz, advance_level
 
     call UpdateHUDLogic
-    
     call wait_vblank_start
-
-
-    call UpdatePlayer_UpdateSprite  ; Update player sprite first SI PONEMOS ESTO PRIMERA EL JUGADOR NO SE CONGELA
-    call copy_enemies_to_oam       ; Finally update enemies
-
-    call UpdateBulletSprites       ; Then update bullets
-
-    ; call copy_enemies_to_oam
-    ; call UpdateBulletSprites
-    ; call UpdatePlayer_UpdateSprite
+    call UpdatePlayer_UpdateSprite     ; Si no se pone primero, el jugador se congela
+    call copy_enemies_to_oam            
+    call UpdateBulletSprites           
     call UpdateHUDGraphics
     
     jp game_loop
 
 show_intro_screen:
-    ; Turn off the screen
     call switch_screen_off
 
-    ; Load intro text tiles into VRAM at $9000
     ld de, intro_text_tiles
     ld hl, $9000          
     ld bc, intro_text_tiles_end - intro_text_tiles
     call mem_copy
 
-    ; Write "PRESS B TO START" centered
-    ld hl, $9800 + (32 * 8) + 2  ; Center both vertically and horizontally
+    ; Escribe "PRESS B TO START" 
+    ld hl, $9800 + (32 * 8) + 2  
 
-    ; Write "PRESS"
     ld [hl], 1        ; P
     inc hl
     ld [hl], 2        ; R
@@ -211,29 +199,23 @@ show_intro_screen:
     ld [hl], 4        ; S
     inc hl
     
-    ; Space
     ld [hl], 0
     inc hl
     
-    ; Write "B"
     ld [hl], 5        ; B
     inc hl
     
-    ; Space
     ld [hl], 0
     inc hl
     
-    ; Write "TO"
     ld [hl], 6        ; T
     inc hl
     ld [hl], 7        ; O
     inc hl
     
-    ; Space
     ld [hl], 0
     inc hl
     
-    ; Write "START"
     ld [hl], 4        ; S
     inc hl
     ld [hl], 6        ; T
@@ -244,11 +226,11 @@ show_intro_screen:
     inc hl
     ld [hl], 6        ; T
 
-    ; Set up palette
+    ; Paleta
     ld a, %11100100
     ld [rBGP], a
 
-    ; Turn screen back on with ONLY background enabled
+    ; Enciende la pantalla sólo con el fondo activado
     ld a, LCDCF_ON | LCDCF_BGON
     ld [rLCDC], a
 
@@ -263,37 +245,33 @@ show_intro_screen:
     ret
 
 show_game_over_screen::
-    ; Turn off the screen
     call switch_screen_off
     
-    ; Load game over tiles into VRAM starting at $9000
     ld de, game_over_tiles
     ld hl, $9000
     ld bc, game_over_tiles_end - game_over_tiles
     call mem_copy
 
-    ; Load intro text tiles right after game over tiles
-    ; Game over tiles are 8 tiles (0-7), so intro tiles start at tile 8
     ld de, intro_text_tiles
-    ld hl, $9080        ; $9000 + (8 tiles * 16 bytes per tile)
+    ld hl, $9080                                        ; $9000 + (8 tiles * 16 bytes por tile)
     ld bc, intro_text_tiles_end - intro_text_tiles
     call mem_copy
 
-    ; Clear ALL tilemap to empty tiles (tile 0)
+    ; Limpia el tilemap
     ld hl, $9800
-    ld bc, 32*32        ; Full background size
+    ld bc, 32*32        ; Tamaño del fondo
 .clear_loop:
-    xor a               ; Empty tile (now points to our blank tile)
+    xor a               
     ld [hl+], a
     dec bc
     ld a, b
     or c
     jr nz, .clear_loop
 
-    ; Write "GAME OVER" centered using game over tiles (0-7)
-    ld hl, $9800 + (32 * 8) + 5  ; Center horizontally on line 8
+    ; Escribe "GAME OVER"
+    ld hl, $9800 + (32 * 8) + 5 
     
-    ; Write "GAME"
+    ; Escribe "GAME"
     ld [hl], 1        ; G
     inc hl
     ld [hl], 2        ; A
@@ -303,10 +281,10 @@ show_game_over_screen::
     ld [hl], 4        ; E
     inc hl
     
-    ; Space
+    ; Espacio
     inc hl
     
-    ; Write "OVER"
+    ; Escribe "OVER"
     ld [hl], 5        ; O
     inc hl
     ld [hl], 6        ; V
@@ -315,10 +293,10 @@ show_game_over_screen::
     inc hl
     ld [hl], 7        ; R
 
-    ; Write "PRESS B TO START" two lines below using intro tiles (starting at tile 8)
-    ld hl, $9800 + (32 * 10) + 2  ; Two lines below GAME OVER
+    ; Escribe "PRESS B TO START"
+    ld hl, $9800 + (32 * 10) + 2  ; 2 líneas por debajo de "GAME OVER"
     
-    ; Write "PRESS" (using intro tiles, adding 8 to each tile number)
+    ; Escribe "PRESS" 
     ld [hl], 8+1      ; P (intro tile 1)
     inc hl
     ld [hl], 8+2      ; R (intro tile 2)
@@ -330,29 +308,27 @@ show_game_over_screen::
     ld [hl], 8+4      ; S (intro tile 4)
     inc hl
     
-    ; Space
-    ld [hl], 8+0      ; Empty tile
+    ; Espacio
+    ld [hl], 8+0      ; Tile vacío
     inc hl
     
-    ; Write "B"
+    ; Escribe "B"
     ld [hl], 8+5      ; B (intro tile 5)
     inc hl
     
-    ; Space
-    ld [hl], 8+0      ; Empty tile
+    ld [hl], 8+0     
     inc hl
     
-    ; Write "TO"
+    ; Escribe "TO"
     ld [hl], 8+6      ; T (intro tile 6)
     inc hl
     ld [hl], 8+7      ; O (intro tile 7)
     inc hl
     
-    ; Space
-    ld [hl], 8+0      ; Empty tile
+    ld [hl], 8+0     
     inc hl
     
-    ; Write "START"
+    ; Escribe "START"
     ld [hl], 8+4      ; S (intro tile 4)
     inc hl
     ld [hl], 8+6      ; T (intro tile 6)
@@ -363,22 +339,23 @@ show_game_over_screen::
     inc hl
     ld [hl], 8+6      ; T (intro tile 6)
 
-    ld hl, $9800 + (32 * 12) + 5  ; Two lines below of PRESS B TO START
+    ; Escribe "SCORE:wScore"
+    ld hl, $9800 + (32 * 12) + 5  ; 2 líneas por debajo de "PRESS B TO START"
 
-    ; Write "SCORE"
-    ld [hl], 8+4      ; S (intro tile 4)
+    ; Escribe "SCORE"
+    ld [hl], 8+4        ; S (intro tile 4)
     inc hl
-    ld [hl], 8+9      ; C (intro tile 9)
+    ld [hl], 8+9        ; C (intro tile 9)
     inc hl
-    ld [hl], 8+7      ; O (intro tile 7)
+    ld [hl], 8+7        ; O (intro tile 7)
     inc hl
-    ld [hl], 8+2      ; R (intro tile 2)
+    ld [hl], 8+2        ; R (intro tile 2)
     inc hl
-    ld [hl], 8+3      ; E (intro tile 3)
+    ld [hl], 8+3        ; E (intro tile 3)
     inc hl
     ld [hl], 8+10       ; :
 
-    ; Write wScore
+    ; Escribe wScore
     ld d, h
     ld e, l
     ld hl, wScoreBuffer
@@ -394,69 +371,65 @@ show_game_over_screen::
     ld a, [hl]
     ld [de], a
     
-    ; Turn screen back on
+    ; Enciende la pantalla
     ld a, LCDCF_ON | LCDCF_BGON
     ld [rLCDC], a
     
-    ; Set game state to game over
     ld a, 2
-    ld [wGameState], a
+    ld [wGameState], a      ; Estado = Game Over
     
 .wait_for_restart:
     call wait_vblank_start
     call update_keys
     
+    ; Comprueba si el botón B se está presionando
     ld a, [wNewKeys]
     and PADF_B
-    jr z, .wait_for_restart
+    jr z, .wait_for_restart     ; Si no, vuelve a comprobar
 
-    ; When B is pressed, first clear both text lines before restarting
-    call switch_screen_off    ; Turn off screen while we clear
+    call switch_screen_off    
     
-    ; Clear the "GAME OVER" line
-    ld hl, $9800 + (32 * 8) + 5  ; Position of "GAME OVER"
-    ld b, 9                      ; Length of "GAME OVER" including space
+    ; Limpia la pantalla
+    ld hl, $9800 + (32 * 8) + 5  ; Posición de "GAME OVER"
+    ld b, 9                      ; Tamaño
 .clear_game_over
-    xor a                        ; Load 0 (empty tile)
+    xor a                       
     ld [hl+], a
     dec b
     jr nz, .clear_game_over
     
-    ; Clear the "PRESS B TO START" line
-    ld hl, $9800 + (32 * 10) + 2  ; Position of "PRESS B TO START"
-    ld b, 16                      ; Length of "PRESS B TO START" including spaces
+    ld hl, $9800 + (32 * 10) + 2  ; Posición de "PRESS B TO START"
+    ld b, 16                      
 .clear_press_b
-    xor a                         ; Load 0 (empty tile)
+    xor a                         
     ld [hl+], a
     dec b
     jr nz, .clear_press_b
 
-    ; Clear the "SCORE:wScore" line
-    ld hl, $9800 + (32 * 12) + 5  ; Two lines below SCORE:wScore
-    ld b, 16                      ; Length of "PRESS B TO START" including spaces
+    ld hl, $9800 + (32 * 12) + 5  ; Posición de "Score:wScore"
+    ld b, 9                      
 .clear_score_screen
     xor a 
     ld [hl+], a
     dec b
     jr nz, .clear_score_screen
     
-    ; Reset game state
+    ; Resetea el estado
     xor a
     ld [wGameState], a
     
-    ; Reset score
+    ; Resetea el score
     xor a
     ld [wScore], a
     ld a, 1
     ld [wScoreChanged], a
     
-    ; Reset lives
+    ; Reset las vidas
     ld a, 3
     ld [wLives], a
     ld a, 1
     ld [wLivesChanged], a
     
-    ; Initialize game components
     call inicializarNave
     call initializeBullet
     call initialize_level_system
@@ -464,55 +437,26 @@ show_game_over_screen::
     call InitHUD
     call clear_oam
 
-    ; Set game state to playing
+    ; 1 = jugando
     ld a, 1
     ld [wGameState], a
 
-    ; Set up screen (including turning it on with proper flags)
+    ; Encender pantalla con objetos y fondo
     ld a, LCDCF_ON | LCDCF_BGON | LCDCF_OBJON
     ld [rLCDC], a
 
-    ; Set up palettes
+    ; Paletas
     ld a, %11100100
     ld [rBGP], a
     ld a, %11100100
     ld [rOBP0], a
 
-    ; Reset other variables
     xor a
     ld [wFrameCounter], a
     ld [wCurKeys], a
     ld [wNewKeys], a
 
     jp game_loop        ; Jump directly to game loop
-
-restart_game:
-    ; Reset game state
-    xor a
-    ld [wGameState], a
-    
-    ; Reset score
-    xor a
-    ld [wScore], a
-    ld a, 1
-    ld [wScoreChanged], a
-    
-    ; Reset lives
-    ld a, 3
-    ld [wLives], a
-    ld a, 1
-    ld [wLivesChanged], a
-    
-    ; Reinitialize game components
-    call inicializarNave
-    call initializeBullet
-    call initialize_level_system
-    call initialize_enemies
-    call InitHUD
-    call clear_oam
-    
-    ; Restart main game loop
-    jp main
 
 wait_vblank_start:
     .loop
@@ -525,12 +469,6 @@ switch_screen_off:
     call wait_vblank_start
     ld hl, rLCDC
     res 7, [hl]
-    ret
-
-switch_screen_on:
-    ldh a, [rLCDC]
-    set 7, a
-    ldh [rLCDC], a
     ret
 
 setup_screen:
@@ -559,37 +497,46 @@ clear_oam:
         jr nz, .loop
     ret
 
-my_ret:
-    ret
-
 update_keys:
-    ld a, P1F_GET_BTN
-    call one_nibble
-    ld b, a
+	; Escribe la mitad del controllador (Botones A y B)
+	ld a, P1F_GET_BTN	; P1F_GET_BTN = P1F_4 = %00010000 -> Carga los botones
+	call one_nibble
+	ld b, a 			; 11110000 -> 7-4 = 1, 3-0 = botones no presionados
 
-    ld a, P1F_GET_DPAD
-    call one_nibble
-    swap a
-    xor b
-    ld b, a
+	; Escribe la otra mitad (Direcciones)
+	ld a, P1F_GET_DPAD	; P1F_GET_DPAD = P1F_5 = %00100000 -> Carga las direcciones
+	call one_nibble
+	swap a 				; A3-0 = direcciones no presionadas; A7-4 = 1
+	xor b 				; A = botones presionados + direcciones
+	ld b, a 			; B = botones presionados + direcciones
 
-    ld a, P1F_GET_NONE
-    ldh [rP1], a
+	; Carga los controladores
+	ld a, P1F_GET_NONE	; P1F_GET_NONE = OR(P1F_4, P1F_5) = OR(%00010000, %00100000) -> No carga ninguno
+	ldh [rP1], a
 
-    ld a, [wCurKeys]
-    xor b
-    and b
-    ld [wNewKeys], a
-    ld a, b
-    ld [wCurKeys], a
+	; Combina con las wCurKeys previas para crear las wNewKeys
+	ld a, [wCurKeys]	; wCurKeys -> Teclas que estaban presionadas anteriormente (Estado actual de los botones)
+	xor b 				; A = teclas que han cambiado de estado
+	and b 				; A = teclas que han cambiado a presionadas
+	ld [wNewKeys], a	; wNewKeys -> Teclas recién presionadas (Estado nuevo de los botones)
+	ld a, b
+	ld [wCurKeys], a	; wCurKeys = estado actualizado de las teclas
 
-    ret
+	ret
 
+; Lee el estado de los botones y los guarda en A
+; 1 nibble = 4 bits = 1/2 byte
+; rP1 (P1/JOYP) -> Guarda el estado de los botones de la consola
+; 	-> Bits 0-3: indica el estado de los botones (A, B, Select, Start, Derecha, Izquierda, Arriba, Abajo)
+; 	-> Bits 4,5: indica en grupo de botones que se quiere leer, direcciones (Derecha, Izquierda, Arriba, Abajo) o botones (A, B, Select, Start)
 one_nibble:
-    ldh [rP1], a
-    call my_ret
-    ldh a, [rP1]
-    ldh a, [rP1]
-    ldh a, [rP1]
-    or a, $F0
+	ldh [rP1], a 	; rP1 = $FF00 -> Actualiza la matriz de teclas
+	call my_ret 	; Quema 10 ciclos llamando a un ret (Pausa)
+	ldh a, [rP1] 	; Ignorar para que la matriz de teclas se estabilice
+	ldh a, [rP1]
+	ldh a, [rP1] 	; Lee
+	or a, $F0 		; 11110000 -> 7-4 = 1, 3-0 = teclas no presionadas
+	ret
+
+my_ret:
     ret

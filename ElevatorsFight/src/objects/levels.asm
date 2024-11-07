@@ -1,15 +1,15 @@
 include "hardware.inc"
 include "objects/constants.asm"
 
-DEF MAX_LEVEL EQU 6    ; Total number of levels
+DEF MAX_LEVEL EQU 6         ; Total de niveles
 
 SECTION "Level Variables", WRAM0
-wCurrentLevel:    DS 1    ; Current level (1-3)
-wLevelComplete:   DS 1    ; Flag for level completion
+wCurrentLevel:    DS 1      ; Nivell actual
+wLevelComplete:   DS 1      ; 1 = completado, 0 = no completado
 
 SECTION "Win Screen Tiles", ROM0
 win_screen_tiles:
-    ; Tile 0: Empty (blank) tile
+    ; Tile 0: Vacío
     db $00,$00,$00,$00,$00,$00,$00,$00
     db $00,$00,$00,$00,$00,$00,$00,$00
     
@@ -37,7 +37,7 @@ win_screen_tiles:
     db $C6,$C6,$E6,$E6,$F6,$F6,$DE,$DE
     db $CE,$CE,$C6,$C6,$C6,$C6,$00,$00
     
-    ; Tile 7: ! (Exclamation mark)
+    ; Tile 7: ! 
     db $18,$18,$18,$18,$18,$18,$18,$18
     db $18,$18,$00,$00,$18,$18,$00,$00
     
@@ -73,11 +73,11 @@ win_screen_tiles:
     db $00,$00,$18,$18,$18,$18,$00,$00
     db $18,$18,$18,$18,$00,$00,$00,$00
 win_screen_tiles_end:
+
 SECTION "Level Code", ROM0
 
-
 initialize_level_system::
-    ld a, 1              ; Start with level 1
+    ld a, 1                     ; Nivel 1
     ld [wCurrentLevel], a
     xor a
     ld [wLevelComplete], a
@@ -85,10 +85,10 @@ initialize_level_system::
 
 check_level_complete::
     ld a, [wCurrentEnemies]
-    and a               ; Check if enemies = 0
-    ret nz              ; Return if not complete
+    and a                       ; Comprueba si enemigos == 0
+    ret nz                      ; Vuelve si no lo está
     
-    ; Level is complete
+    ; Nivel completado
     ld a, 1
     ld [wLevelComplete], a
     ret
@@ -98,7 +98,8 @@ advance_level::
     inc a
     cp MAX_LEVEL + 1
     jr z, .game_complete
-    ; Start next level
+
+    ; Empeiza el siguiente nivel
     ld [wCurrentLevel], a
     xor a
     ld [wLevelComplete], a
@@ -108,16 +109,14 @@ advance_level::
     jp show_win_screen 
 
 show_win_screen::
-    ; Turn off the screen
     call switch_screen_off
     
-    ; Load win screen tiles into VRAM starting at $9000
     ld de, win_screen_tiles
     ld hl, $9000
     ld bc, win_screen_tiles_end - win_screen_tiles
     call mem_copy
 
-    ; Clear ALL tilemap
+    ; Limpia el tilemap
     ld hl, $9800
     ld bc, 32*32
 .clear_loop:
@@ -128,17 +127,16 @@ show_win_screen::
     or c
     jr nz, .clear_loop
 
-    ; Write "YOU WIN!" centered
+    ; Escirbe "YOU WIN!" 
     ld hl, $9800 + (32 * 8) + 6  
     
-    ; Write "YOU WIN!" using win screen tiles
     ld [hl], 1        ; Y
     inc hl
     ld [hl], 2        ; O
     inc hl
     ld [hl], 3        ; U
     inc hl
-    ld [hl], 0        ; Space
+    ld [hl], 0        ; Espacio
     inc hl
     ld [hl], 4        ; W
     inc hl
@@ -148,22 +146,22 @@ show_win_screen::
     inc hl
     ld [hl], 7        ; !
 
-    ld hl, $9800 + (32 * 10) + 5  ; Two lines below SCORE:wScore
+    ld hl, $9800 + (32 * 10) + 5  ; 2 líneas por debajo de "YOU WIN!"
 
-    ; Write "SCORE"
-    ld [hl], 11      ; S (intro tile 4)
+    ; Escirbe "SCORE:wScore"
+    ld [hl], 11     ; S (intro tile 4)
     inc hl
-    ld [hl], 14      ; C (intro tile 9)
+    ld [hl], 14     ; C (intro tile 9)
     inc hl
     ld [hl], 2      ; O (intro tile 7)
     inc hl
     ld [hl], 9      ; R (intro tile 2)
     inc hl
-    ld [hl], 10      ; E (intro tile 3)
+    ld [hl], 10     ; E (intro tile 3)
     inc hl
-    ld [hl], 15       ; :
+    ld [hl], 15     ; :
 
-    ; Write wScore
+    ; Escirbe wScore
     ld d, h
     ld e, l
     ld hl, wScoreBuffer
@@ -179,10 +177,9 @@ show_win_screen::
     ld a, [hl]
     ld [de], a
 
-    ; Write "PRESS B TO CONTINUE"
+    ; Escirbe "PRESS B TO CONTINUE"
     ld hl, $9800 + (32 * 12) + 1
     
-    ; Write "PRESS"
     ld [hl], 8       ; P
     inc hl
     ld [hl], 9       ; R
@@ -194,29 +191,27 @@ show_win_screen::
     ld [hl], 11      ; S
     inc hl
     
-    ; Space
+    ; Espacio
     ld [hl], 0        
     inc hl
     
-    ; Write "B"
+    ; Escirbe "B"
     ld [hl], 12      ; B
     inc hl
     
-    ; Space
     ld [hl], 0        
     inc hl
     
-    ; Write "TO"
+    ; Escirbe "TO"
     ld [hl], 13      ; T
     inc hl
     ld [hl], 2       ; O
     inc hl
     
-    ; Space
     ld [hl], 0        
     inc hl
     
-    ; Write "CONTINUE"
+    ; Escirbe "CONTINUE"
     ld [hl], 14      ; C
     inc hl
     ld [hl], 2       ; O
@@ -233,7 +228,7 @@ show_win_screen::
     inc hl
     ld [hl], 10      ; E
 
-    ; Turn screen back on
+    ; Enciende la pantalla
     ld a, LCDCF_ON | LCDCF_BGON
     ld [rLCDC], a
     
@@ -245,16 +240,14 @@ show_win_screen::
     and PADF_B
     jr z, .wait_for_continue
 
-    ; When B is pressed, reload intro screen
-    call switch_screen_off
+    call switch_screen_off      ; Recarga si se presiona B
     
-    ; Load intro text tiles into VRAM at $9000
     ld de, intro_text_tiles
     ld hl, $9000          
     ld bc, intro_text_tiles_end - intro_text_tiles
     call mem_copy
 
-    ; Clear ALL tilemap
+    ; Limpia el tilemap
     ld hl, $9800
     ld bc, 32*32
 .clear_before_main:
@@ -265,10 +258,10 @@ show_win_screen::
     or c
     jr nz, .clear_before_main
 
-    ; Write "PRESS B TO START" centered
-    ld hl, $9800 + (32 * 8) + 2  ; Center position for intro text
+    ; Escirbe "PRESS B TO START" 
+    ld hl, $9800 + (32 * 8) + 2  
 
-    ; Write "PRESS"
+    ; Escirbe "PRESS"
     ld [hl], 1        ; P
     inc hl
     ld [hl], 2        ; R
@@ -280,29 +273,27 @@ show_win_screen::
     ld [hl], 4        ; S
     inc hl
     
-    ; Space
     ld [hl], 0
     inc hl
     
-    ; Write "B"
+    ; Escirbe "B"
     ld [hl], 5        ; B
     inc hl
     
-    ; Space
     ld [hl], 0
     inc hl
     
-    ; Write "TO"
+    ; Escirbe "TO"
     ld [hl], 6        ; T
     inc hl
     ld [hl], 7        ; O
     inc hl
     
-    ; Space
+    
     ld [hl], 0
     inc hl
     
-    ; Write "START"
+    ; Escirbe "START"
     ld [hl], 4        ; S
     inc hl
     ld [hl], 6        ; T
@@ -313,9 +304,8 @@ show_win_screen::
     inc hl
     ld [hl], 6        ; T
 
-    ; Turn screen back on
+    ; Enciende la pantalla
     ld a, LCDCF_ON | LCDCF_BGON
     ld [rLCDC], a
 
-    ; Now jump to main loop
     jp main

@@ -1,10 +1,9 @@
 include "src/hardware.inc"
 
 SECTION "VariablesNave", WRAM0
-; Definir variables para almacenar las posiciones X e Y de la nave
 posicionNaveX:  DS 1 ; Variable de 1 byte para la posición X
 posicionNaveY:  DS 1 ; Variable de 1 byte para la posición Y
-naveStatus:     DS 1 ; 0 = dead, 1 = alive
+naveStatus:     DS 1 ; 0 = muerto, 1 = vivo
 
 SECTION "Player", ROM0
 
@@ -48,27 +47,30 @@ updateNave_HandleInput:
 
 ; Actualiza el sprite en OAM (DEBE llamarse durante VBLANK)
 UpdatePlayer_UpdateSprite::
-    ; x position in b
     ld a, [posicionNaveX]
-    add 8          ; Add 8 for hardware X offset
+    add 8                   ;  +8 de offset por el hardware
     ld b, a
-    ; y position in c
+
     ld a, [posicionNaveY]
-    add 16         ; Add 16 for hardware Y offset
+    add 16                  ; +16 de offset por el hardware
     ld c, a
 
     ; Actualiza OAM
     ld hl, _OAMRAM
-    ; Y position
+
+    ; Y 
     ld a, c
     ld [hl+], a
-    ; X position
+
+    ; X 
     ld a, b
     ld [hl+], a
-    ; Tile number
+
+    ; Tile
     xor a
     ld [hl+], a
-    ; Attributes
+
+    ; Atributos
     ld [hl], a
     ret
 
@@ -78,10 +80,9 @@ TryShoot:
     ret z
     jp FireBullet
 
-; Movement functions; Movement functions with corrected screen boundaries
 MoveLeft:
     ld a, [posicionNaveX]
-    cp 0              ; Left limit (left edge of screen)
+    cp 0                    ; Límite izquierda
     ret z
     sub 1
     ld [posicionNaveX], a
@@ -89,7 +90,7 @@ MoveLeft:
 
 MoveRight:
     ld a, [posicionNaveX]
-    cp 152            ; Right limit (160 - 8 for sprite width)
+    cp 152                  ; Límite derecha
     ret z
     add 1
     ld [posicionNaveX], a
